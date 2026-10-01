@@ -164,6 +164,17 @@ def choose_port(pio: Path, requested: str | None) -> str:
     return str(best[0]["port"])
 
 
+def refresh_port(pio: Path, selected_port: str) -> str:
+    """Keep the selected path when present, or follow a uniquely re-enumerated ESP32."""
+    devices = list_serial_devices(pio, announce=False)
+    if any(str(device["port"]) == selected_port for device in devices):
+        return selected_port
+
+    replacement = choose_port(pio, None)
+    print(f"USB port changed: {selected_port} -> {replacement}")
+    return replacement
+
+
 def require_files(paths: Iterable[Path]) -> None:
     missing = [str(path.relative_to(PROJECT_DIR)) for path in paths if not path.is_file()]
     if missing:
@@ -252,6 +263,9 @@ def main() -> int:
 
     if not args.skip_build:
         build_images(pio, args.environment, args.filesystem_only, args.dry_run)
+
+    if not args.dry_run:
+        port = refresh_port(pio, port)
 
     build_dir = PROJECT_DIR / ".pio" / "build" / args.environment
     littlefs = build_dir / "littlefs.bin"

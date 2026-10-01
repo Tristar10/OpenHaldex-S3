@@ -8,9 +8,37 @@
 #include "functions/storage/storage.h"
 
 static bool fs_ok = false;
+static const char* UI_CACHE_CONTROL = "no-cache, no-store, must-revalidate";
 
 static void sendNotFound(AsyncWebServerRequest* request) {
   request->send(404, "text/plain", "Not found");
+}
+
+static bool acceptsGzip(AsyncWebServerRequest* request) {
+  return request->hasHeader("Accept-Encoding") && request->header("Accept-Encoding").indexOf("gzip") >= 0;
+}
+
+static void sendWebAsset(AsyncWebServerRequest* request, const char* path, const char* content_type) {
+  if (!fs_ok) {
+    request->send(500, "text/plain", "LittleFS not mounted");
+    return;
+  }
+
+  String compressed_path = String(path) + ".gz";
+  bool use_gzip = acceptsGzip(request) && LittleFS.exists(compressed_path);
+  String response_path = use_gzip ? compressed_path : String(path);
+  if (!LittleFS.exists(response_path)) {
+    request->send(404, "text/plain", "WebUI asset not found");
+    return;
+  }
+
+  AsyncWebServerResponse* response = request->beginResponse(LittleFS, response_path, content_type, false);
+  if (use_gzip) {
+    response->addHeader("Content-Encoding", "gzip");
+  }
+  response->addHeader("Vary", "Accept-Encoding");
+  response->addHeader("Cache-Control", UI_CACHE_CONTROL);
+  request->send(response);
 }
 
 static void otaSendResult(AsyncWebServerRequest* request, bool ok) {
@@ -30,10 +58,17 @@ void webInit(AsyncWebServer& server) {
     DEBUG("LittleFS not mounted");
   }
 
+  // Serve the two largest assets from their pre-compressed copies when the
+  // browser supports gzip. Keep the originals as a compatibility fallback.
+  server.on("/app.js", HTTP_GET,
+            [](AsyncWebServerRequest* request) { sendWebAsset(request, "/app.js", "application/javascript"); });
+  server.on("/styles.css", HTTP_GET,
+            [](AsyncWebServerRequest* request) { sendWebAsset(request, "/styles.css", "text/css"); });
+
   // Avoid stale UI assets after LittleFS updates.
   auto& staticHandler = server.serveStatic("/", LittleFS, "/");
   staticHandler.setDefaultFile("index.html");
-  staticHandler.setCacheControl("no-cache, no-store, must-revalidate");
+  staticHandler.setCacheControl(UI_CACHE_CONTROL);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (!fs_ok) {

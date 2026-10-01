@@ -4,3 +4,7 @@
 
 # UI development folder and can dump viewer
 data/ui-dev/
+
+# Generated compressed WebUI assets
+data/app.js.gz
+data/styles.css.gz
