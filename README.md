@@ -72,6 +72,7 @@ Main features:
 - Gen 5 parked sleep mode to reduce battery draw on vehicles with constant controller power
 - Haldex Diagnostics page with UDS/KWP transport status, route probing, module identity, DTC read/clear, and Gen 5 decoded measured values
 - CAN View with decoded/raw frames, filtering, bus selection, row origin markers, 30 second dump, and diagnostic capture mode
+- RaceChrono DIY Bluetooth LE telemetry for filtered raw chassis CAN and decoded OpenHaldex values
 - Diagnostics, logs, Wi-Fi settings, and OTA updates from the built-in web UI
 
 ## Safety
@@ -381,6 +382,18 @@ It includes:
 - diagnostic capture mode
 
 It is not intended to be a full SavvyCAN replacement or a high-rate real-time Wi-Fi CAN interface. For that use case, use a dedicated USB CAN interface.
+
+## RaceChrono Bluetooth telemetry
+
+The firmware advertises `OpenHaldex-RC` as an official RaceChrono DIY BLE
+CAN-Bus device. RaceChrono can request selected raw chassis CAN identifiers, or
+use the built-in decoded packet for speed, RPM, accelerator, requested lock,
+actual lock, and active mode. Bluetooth telemetry is best-effort and isolated
+from the Haldex CAN bridge: queue pressure drops telemetry rather than delaying
+control traffic.
+
+See [RaceChrono BLE telemetry](docs/RACECHRONO_BLE.md) for phone setup,
+equations, limits, and a no-harness bench test.
 
 ## Maps and Filesystem
 

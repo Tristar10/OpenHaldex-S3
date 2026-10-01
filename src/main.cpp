@@ -17,6 +17,7 @@
 #include "functions/net/update.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
+#include "functions/telemetry/racechrono_ble.h"
 
 static AsyncWebServer server(80);
 
@@ -289,6 +290,7 @@ void setup() {
   webInit(server);
   setupApi(server);
   server.begin();
+  racechronoBleInit();
 }
 
 void loop() {

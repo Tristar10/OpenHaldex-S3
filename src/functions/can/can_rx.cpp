@@ -14,6 +14,7 @@
 #include "functions/can/can_state.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
+#include "functions/telemetry/racechrono_ble.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -364,6 +365,9 @@ void parseCAN_chs(void* arg) {
 
     uint16_t burst_frames = 0;
     while (chassis_can_receive(rx_msg_chs())) {
+      // Offer the original chassis frame to a non-blocking telemetry queue before
+      // any Haldex control mutation. Queue saturation drops telemetry only.
+      racechronoBleSubmitChassisFrame(rx_msg_chs());
       lastCANChassisTick = millis();
       const uint32_t now_ms = millis();
       powerTrackChassisFrame(rx_msg_chs(), now_ms);
