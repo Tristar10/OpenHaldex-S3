@@ -328,7 +328,16 @@ def main() -> int:
         for offset, image in flash_pairs:
             flash_command += [hex(offset), str(image)]
 
-    run(flash_command, dry_run=args.dry_run)
+    try:
+        run(flash_command, dry_run=args.dry_run)
+    except subprocess.CalledProcessError:
+        if not args.dry_run:
+            print(
+                "\nUSB serial flashing failed. The ESP32-S3 may have changed port names. "
+                "Try the browser flasher instead:\n  python3 scripts/web_flash.py --skip-build",
+                file=sys.stderr,
+            )
+        raise
     if args.dry_run:
         print("\nDry run complete; nothing was written.")
         return 0

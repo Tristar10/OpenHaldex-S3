@@ -442,6 +442,18 @@ python3 scripts/flash.py --port /dev/cu.usbmodem1234
 
 On Windows, use `python` instead of `python3` if that is how Python is installed, and pass a port such as `--port COM5` when automatic detection is ambiguous.
 
+### Browser flashing
+
+ESP32-S3 native USB can change serial-port names while entering the bootloader, especially on macOS. The local browser installer avoids depending on a fixed port name:
+
+```bash
+python3 scripts/web_flash.py
+```
+
+The helper builds the firmware and LittleFS WebUI, opens a local installer in Chrome or Edge, and keeps serving the images until you stop it with Ctrl-C. Click **Connect and install**, then select the Espressif USB/JTAG serial device. If connection fails, hold BOOT, tap RESET, release BOOT, and try again.
+
+The installer can also use a compatible manifest URL, a custom OpenHaldex split-image set, or a complete merged image at offset `0x0`. Custom files remain local to the browser. Do not select an ordinary application-only `firmware.bin` as a merged image.
+
 ### Manual PlatformIO commands
 
 1. Install VS Code and PlatformIO IDE.

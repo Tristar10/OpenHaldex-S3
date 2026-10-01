@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OpenHaldex S3 Installer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+    <script type="module" src="installer.js"></script>
+  </head>
+  <body>
+    <main class="card">
+      <header>
+        <p class="eyebrow">LilyGO T-2CAN · ESP32-S3</p>
+        <h1>OpenHaldex installer</h1>
+        <p>Flash the current build or select another compatible firmware without relying on a fixed serial-port name.</p>
+      </header>
+
+      <section class="source-panel" aria-labelledby="source-heading">
+        <label id="source-heading" for="source">Firmware source</label>
+        <select id="source">
+          <option value="local">Current local build</option>
+          <option value="manifest">Installer manifest URL</option>
+          <option value="split">Custom split images</option>
+          <option value="merged">Custom merged image</option>
+        </select>
+
+        <div class="source-content" data-source="local">
+          <p>The helper built firmware and WebUI files from this checkout immediately before opening this page.</p>
+          <button type="button" class="secondary" id="use-local">Reload local build</button>
+        </div>
+
+        <div class="source-content" data-source="manifest" hidden>
+          <label for="manifest-url">Manifest address</label>
+          <input id="manifest-url" type="url" placeholder="https://example.com/manifest.json" spellcheck="false">
+          <button type="button" class="secondary" id="use-manifest">Use this manifest</button>
+        </div>
+
+        <form class="source-content" data-source="split" id="split-form" hidden>
+          <p class="help">For OpenHaldex S3 build outputs. The correct board offsets are applied automatically.</p>
+          <label>Bootloader <input name="bootloader" type="file" accept=".bin,application/octet-stream" required></label>
+          <label>Partitions <input name="partitions" type="file" accept=".bin,application/octet-stream" required></label>
+          <label>Firmware <input name="firmware" type="file" accept=".bin,application/octet-stream" required></label>
+          <label>LittleFS <span>(optional)</span> <input name="littlefs" type="file" accept=".bin,application/octet-stream"></label>
+          <button type="submit" class="secondary">Prepare selected files</button>
+        </form>
+
+        <form class="source-content" data-source="merged" id="merged-form" hidden>
+          <p class="help">Use only a complete ESP32-S3 flash image built for offset <code>0x0</code>. An application-only <code>firmware.bin</code> is not a merged image.</p>
+          <label>Complete flash image <input name="merged" type="file" accept=".bin,application/octet-stream" required></label>
+          <button type="submit" class="secondary">Prepare selected image</button>
+        </form>
+      </section>
+
+      <section class="install-panel" aria-live="polite">
+        <p id="status">Current local build is ready.</p>
+        <esp-web-install-button id="install-button" manifest="./build/manifest.json">
+          <button slot="activate" type="button" class="primary">Connect and install</button>
+          <span slot="unsupported">Use Chrome or Edge on a desktop computer to flash over USB.</span>
+          <span slot="not-allowed">Serial access requires this page to be opened from localhost or HTTPS.</span>
+        </esp-web-install-button>
+        <p class="erase-note">Leave <strong>Erase device</strong> off to preserve saved settings. The current local build always replaces the WebUI filesystem.</p>
+      </section>
+
+      <details>
+        <summary>Connection help</summary>
+        <ol>
+          <li>Connect the board with a data-capable USB cable and close serial monitors.</li>
+          <li>If normal connection fails, hold <strong>BOOT</strong>, tap <strong>RESET</strong>, then release BOOT.</li>
+          <li>Click Connect and choose the Espressif USB/JTAG serial device. Its port name may change; that is normal.</li>
+          <li>After installation, press RESET once if the board does not restart automatically.</li>
+        </ol>
+      </details>
+
+      <p class="warning">Only install firmware intended for the LilyGO T-2CAN ESP32-S3. Keep vehicle power disconnected while bench flashing.</p>
+    </main>
+  </body>
+</html>
