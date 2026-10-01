@@ -6,9 +6,6 @@ __pycache__/
 # UI development folder and can dump viewer
 data/ui-dev/
 
-# Generated compressed WebUI assets
-data/app.js.gz
-data/styles.css.gz
 
 # Generated local browser-installer firmware files
 tools/web-installer/build/
