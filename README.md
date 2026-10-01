@@ -417,6 +417,33 @@ OTA can update both firmware and LittleFS when release assets are available.
 
 This project is pinned to known-good PlatformIO and ESP32 Arduino package versions.
 
+### Streamlined USB flashing
+
+From the project directory, connect the LilyGO T-2CAN-S3 and run:
+
+```bash
+python3 scripts/flash.py
+```
+
+The helper automatically finds the board, builds the firmware and LittleFS WebUI, writes both in one flash operation, resets the board, and waits for its application serial port to return. A normal update preserves settings stored in NVS. Installing LittleFS replaces its existing contents, so export custom maps or logs before updating the WebUI.
+
+Useful alternatives:
+
+```bash
+# Replace saved settings and maps with project defaults
+python3 scripts/flash.py --clean
+
+# Rebuild and install only the WebUI filesystem
+python3 scripts/flash.py --filesystem-only
+
+# Select a port when more than one USB serial device is connected
+python3 scripts/flash.py --port /dev/cu.usbmodem1234
+```
+
+On Windows, use `python` instead of `python3` if that is how Python is installed, and pass a port such as `--port COM5` when automatic detection is ambiguous.
+
+### Manual PlatformIO commands
+
 1. Install VS Code and PlatformIO IDE.
 2. Open this folder as a PlatformIO project.
 3. Build:
