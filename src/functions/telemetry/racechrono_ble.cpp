@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <esp_attr.h>
 
 #include "functions/config/config.h"
 #include "functions/core/state.h"
@@ -21,6 +22,30 @@ constexpr uint16_t kMinNotifyIntervalMs = 20; // Protect the control loop: max 5
 constexpr uint16_t kDefaultTelemetryIntervalMs = 50;
 constexpr uint8_t kFilterCapacity = 32;
 constexpr uint8_t kQueueDepth = 48;
+constexpr uint32_t kBleBootGuardMagic = 0x5243424BUL; // "RCBK"; bump when the guarded startup sequence changes.
+constexpr uint32_t kBleStartupDelayMs = 2500;
+
+enum class BleBootPhase : uint8_t {
+  Unknown = 0,
+  InitializingStack = 1,
+  CreatingServer = 2,
+  CreatingService = 3,
+  CreatingCharacteristics = 4,
+  StartingAdvertising = 5,
+  StartingTelemetryTask = 6,
+  Running = 7,
+  Failed = 8,
+};
+
+struct BleBootGuard {
+  uint32_t magic;
+  BleBootPhase phase;
+};
+
+// RTC memory survives a software/panic reset but is cleared by removing power.
+// If BLE crashes during initialization, the next boot remains usable with BLE
+// disabled rather than entering a permanent reboot loop.
+RTC_NOINIT_ATTR BleBootGuard g_ble_boot_guard;
 
 struct TelemetryPacket {
   uint32_t pid;
@@ -43,6 +68,22 @@ bool g_allow_all = false;
 uint16_t g_allow_all_interval_ms = kDefaultTelemetryIntervalMs;
 uint32_t g_allow_all_last_queued_ms = 0;
 volatile bool g_client_connected = false;
+
+void setBleBootPhase(BleBootPhase phase, const char* message) {
+  g_ble_boot_guard.magic = kBleBootGuardMagic;
+  g_ble_boot_guard.phase = phase;
+  Serial.printf("[racechrono] %s (stage %u)\n", message, (unsigned int)phase);
+  Serial.flush();
+}
+
+void markBleStartupFailed() {
+  g_can_data_characteristic = nullptr;
+  if (g_ble_boot_guard.magic != kBleBootGuardMagic || g_ble_boot_guard.phase == BleBootPhase::Unknown ||
+      g_ble_boot_guard.phase == BleBootPhase::Running) {
+    g_ble_boot_guard.magic = kBleBootGuardMagic;
+    g_ble_boot_guard.phase = BleBootPhase::Failed;
+  }
+}
 
 uint16_t safeInterval(uint16_t requested_ms) {
   return requested_ms < kMinNotifyIntervalMs ? kMinNotifyIntervalMs : requested_ms;
@@ -227,10 +268,76 @@ void telemetryTask(void* arg) {
   }
 }
 
+bool initializeBleServer() {
+  setBleBootPhase(BleBootPhase::InitializingStack, "Initializing NimBLE stack");
+  if (!NimBLEDevice::init(kDeviceName)) {
+    LOG_ERROR("racechrono", "NimBLE initialization failed");
+    return false;
+  }
+
+  setBleBootPhase(BleBootPhase::CreatingServer, "Creating BLE server");
+  NimBLEServer* server = NimBLEDevice::createServer();
+  if (!server) {
+    LOG_ERROR("racechrono", "Unable to create BLE server");
+    return false;
+  }
+  server->setCallbacks(&g_server_callbacks, false);
+
+  setBleBootPhase(BleBootPhase::CreatingService, "Creating RaceChrono service");
+  NimBLEService* service = server->createService(NimBLEUUID(kRaceChronoServiceUuid));
+  if (!service) {
+    LOG_ERROR("racechrono", "Unable to create RaceChrono BLE service");
+    return false;
+  }
+
+  setBleBootPhase(BleBootPhase::CreatingCharacteristics, "Creating RaceChrono characteristics");
+  g_can_data_characteristic = service->createCharacteristic(
+    NimBLEUUID(kCanDataCharacteristicUuid), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+  NimBLECharacteristic* filter_characteristic =
+    service->createCharacteristic(NimBLEUUID(kCanFilterCharacteristicUuid), NIMBLE_PROPERTY::WRITE);
+  if (!g_can_data_characteristic || !filter_characteristic) {
+    LOG_ERROR("racechrono", "Unable to create RaceChrono BLE characteristics");
+    return false;
+  }
+  // Characteristic callbacks are never owned/deleted by NimBLE 2.x.
+  filter_characteristic->setCallbacks(&g_filter_callbacks);
+
+  setBleBootPhase(BleBootPhase::StartingAdvertising, "Starting BLE advertising");
+  NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
+  if (!advertising) {
+    LOG_ERROR("racechrono", "Unable to create BLE advertiser");
+    return false;
+  }
+  advertising->addServiceUUID(NimBLEUUID(kRaceChronoServiceUuid));
+  advertising->enableScanResponse(true);
+  advertising->setName(kDeviceName);
+  if (!advertising->start()) {
+    LOG_ERROR("racechrono", "Unable to start BLE advertising");
+    return false;
+  }
+
+  setBleBootPhase(BleBootPhase::StartingTelemetryTask, "Starting telemetry task");
+  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 6144, nullptr, 1, nullptr, OH_APP_TASK_CORE) != pdPASS) {
+    LOG_ERROR("racechrono", "Unable to start BLE telemetry task");
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 void racechronoBleInit() {
   if (g_packet_queue) {
+    return;
+  }
+
+  if (g_ble_boot_guard.magic == kBleBootGuardMagic && g_ble_boot_guard.phase != BleBootPhase::Unknown &&
+      g_ble_boot_guard.phase != BleBootPhase::Running) {
+    delay(kBleStartupDelayMs);
+    Serial.printf("[racechrono] BLE disabled after startup failed at stage %u; power-cycle to retry\n",
+                  (unsigned int)g_ble_boot_guard.phase);
+    Serial.flush();
+    LOG_ERROR("racechrono", "BLE disabled after an earlier startup failure; power-cycle to retry");
     return;
   }
 
@@ -240,26 +347,16 @@ void racechronoBleInit() {
     return;
   }
 
-  NimBLEDevice::init(kDeviceName);
-  NimBLEServer* server = NimBLEDevice::createServer();
-  server->setCallbacks(&g_server_callbacks);
-  NimBLEService* service = server->createService(NimBLEUUID(kRaceChronoServiceUuid));
-  g_can_data_characteristic = service->createCharacteristic(
-    NimBLEUUID(kCanDataCharacteristicUuid), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-  NimBLECharacteristic* filter_characteristic =
-    service->createCharacteristic(NimBLEUUID(kCanFilterCharacteristicUuid), NIMBLE_PROPERTY::WRITE);
-  filter_characteristic->setCallbacks(&g_filter_callbacks);
-
-  NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
-  advertising->addServiceUUID(NimBLEUUID(kRaceChronoServiceUuid));
-  advertising->enableScanResponse(true);
-  advertising->setName(kDeviceName);
-  advertising->start();
-
-  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 6144, nullptr, 1, nullptr, OH_APP_TASK_CORE) != pdPASS) {
-    LOG_ERROR("racechrono", "Unable to start BLE telemetry task");
+  if (!initializeBleServer()) {
+    markBleStartupFailed();
+    Serial.println("[racechrono] BLE startup failed; disabled until power cycle");
+    Serial.flush();
     return;
   }
+
+  g_ble_boot_guard.phase = BleBootPhase::Running;
+  Serial.println("[racechrono] BLE ready as OpenHaldex-RC");
+  Serial.flush();
   LOG_INFO("racechrono", "BLE DIY service ready name=%s", kDeviceName);
 }
 

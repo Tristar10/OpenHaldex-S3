@@ -278,6 +278,11 @@ void setup() {
   diagUdsInit();
   LOG_INFO("system", "Storage loaded and logger active");
 
+  // Reserve the BLE controller's internal memory before Wi-Fi and the web
+  // service allocate their runtime buffers. BLE/Wi-Fi coexist normally after
+  // both radios have initialized.
+  racechronoBleInit();
+
   tasksInit();
   powerStartMonitor();
 
@@ -290,7 +295,6 @@ void setup() {
   webInit(server);
   setupApi(server);
   server.begin();
-  racechronoBleInit();
 }
 
 void loop() {

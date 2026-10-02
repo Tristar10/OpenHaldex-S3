@@ -4,6 +4,15 @@ OpenHaldex-S3 advertises a RaceChrono DIY CAN-Bus device named
 `OpenHaldex-RC`. It implements the official RaceChrono BLE service and works
 alongside the normal OpenHaldex Wi-Fi access point and WebUI.
 
+## Power the controller from 12V/VIN, not USB alone
+
+Powering the board over USB only (e.g. a laptop port during bring-up) can
+brown out the moment the BLE radio initializes, even on USB ports rated for
+high wattage: the board does not negotiate USB-PD, and the one-time radio
+calibration burst can exceed what the USB path delivers. Power the controller
+from its 12V/VIN input (vehicle or bench supply) whenever BLE is enabled. USB
+can stay connected for flashing and serial logs alongside VIN power.
+
 ## Connect RaceChrono
 
 1. Flash the application firmware and restart the controller normally.
@@ -57,6 +66,9 @@ module-side frames are not sent over BLE.
   PID channels are preferred for an autocross session.
 - One RaceChrono BLE client is the supported configuration. A second phone can
   continue to use the OpenHaldex Wi-Fi WebUI as a dash.
+- BLE reserves its radio memory before Wi-Fi starts and validates every setup step. If BLE crashes
+  during startup, the following boot leaves BLE disabled so the controller and
+  WebUI remain recoverable. Remove power and reconnect it to retry BLE.
 
 ## Bench test without a CAN harness
 

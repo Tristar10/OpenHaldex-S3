@@ -297,7 +297,7 @@ def main() -> int:
         "write-flash",
         "-z",
         "--flash-mode",
-        "qio",
+        "dio",
         "--flash-freq",
         "80m",
         "--flash-size",
