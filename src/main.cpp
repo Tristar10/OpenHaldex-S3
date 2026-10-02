@@ -17,7 +17,7 @@
 #include "functions/net/update.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
-#include "functions/telemetry/racechrono_ble.h"
+#include "functions/telemetry/racechrono_wifi.h"
 
 static AsyncWebServer server(80);
 
@@ -278,15 +278,11 @@ void setup() {
   diagUdsInit();
   LOG_INFO("system", "Storage loaded and logger active");
 
-  // Reserve the BLE controller's internal memory before Wi-Fi and the web
-  // service allocate their runtime buffers. BLE/Wi-Fi coexist normally after
-  // both radios have initialized.
-  racechronoBleInit();
-
   tasksInit();
   powerStartMonitor();
 
   wifiStart();
+  racechronoWifiInit();
 
   updateInit();
   xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
