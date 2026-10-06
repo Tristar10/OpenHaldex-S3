@@ -17,7 +17,6 @@
 #include "functions/net/update.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
-#include "functions/diag/engine_probe.h"
 #include "functions/telemetry/racechrono_wifi.h"
 
 static AsyncWebServer server(80);
@@ -278,7 +277,6 @@ void setup() {
   storageLoad();
   diagUdsInit();
   diagUdsHaldexTempPollInit();
-  engineProbeInit();
   LOG_INFO("system", "Storage loaded and logger active");
 
   tasksInit();

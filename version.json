@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.2",
-  "notes": "OpenHaldex-S3 v1.1.2 adds an experimental engine ECU reachability probe (POST /api/diag/engine-probe)",
+  "version": "v1.1.3",
+  "notes": "OpenHaldex-S3 v1.1.3 removes the engine ECU probe (gateway does not route diagnostics from the chassis bus)",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

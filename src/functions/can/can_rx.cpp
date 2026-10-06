@@ -14,7 +14,6 @@
 #include "functions/can/can_state.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
-#include "functions/diag/engine_probe.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -369,7 +368,6 @@ void parseCAN_chs(void* arg) {
       const uint32_t now_ms = millis();
       powerTrackChassisFrame(rx_msg_chs(), now_ms);
       canviewCacheFrame(rx_msg_chs(), 0);
-      engineProbeObserveChassisFrame(rx_msg_chs());
       apply_mode_trigger_from_frame(rx_msg_chs(), 0, now_ms);
 
       float mapped_value = 0.0f;
