@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.1",
-  "notes": "OpenHaldex-S3 v1.1.1 moves RaceChrono telemetry to WiFi and adds experimental autocross/track features",
+  "version": "v1.1.2",
+  "notes": "OpenHaldex-S3 v1.1.2 adds an experimental engine ECU reachability probe (POST /api/diag/engine-probe)",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

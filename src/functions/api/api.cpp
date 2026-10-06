@@ -17,6 +17,7 @@
 #include "functions/tasks/tasks.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
+#include "functions/diag/engine_probe.h"
 
 #include <optional>
 
@@ -2226,6 +2227,12 @@ static void handleUdsProbe(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
+static void handleEngineProbe(AsyncWebServerRequest* request) {
+  JsonDocument doc;
+  engineProbeRun(doc.to<JsonObject>());
+  sendJson(request, 200, doc);
+}
+
 static void handleUdsReadDid(AsyncWebServerRequest* request) {
   if (!request->hasParam("did")) {
     sendError(request, 400, "did query parameter required");
@@ -2571,6 +2578,7 @@ void setupApi(AsyncWebServer& server) {
   server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest* request) { handleStatus(request); });
   server.on("/api/uds/status", HTTP_GET, [](AsyncWebServerRequest* request) { handleUdsStatus(request); });
   server.on("/api/uds/probe", HTTP_POST, [](AsyncWebServerRequest* request) { handleUdsProbe(request); });
+  server.on("/api/diag/engine-probe", HTTP_POST, [](AsyncWebServerRequest* request) { handleEngineProbe(request); });
   server.on("/api/uds/read", HTTP_GET, [](AsyncWebServerRequest* request) { handleUdsReadDid(request); });
   server.on(
     "/api/uds/read", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
