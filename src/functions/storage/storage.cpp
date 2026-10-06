@@ -28,6 +28,12 @@ static const char* LOG_SERIAL_ENABLE_KEY = "logSerial";
 static const char* LOG_DEBUG_FIRMWARE_ENABLE_KEY = "logDbgFw";
 static const char* LOG_DEBUG_NETWORK_ENABLE_KEY = "logDbgNet";
 static const char* LOG_DEBUG_CAN_ENABLE_KEY = "logDbgCan";
+static const char* EXPERIMENTAL_FEATURES_ENABLE_KEY = "expFeatOn";
+static const char* REVERSE_AUTO_SWITCH_ENABLE_KEY = "revSwOn";
+static const char* REVERSE_AUTO_SWITCH_MODE_KEY = "revSwMode";
+static const char* HALDEX_THERMAL_PROTECTION_ENABLE_KEY = "thermProtOn";
+static const char* HALDEX_THERMAL_PROTECTION_THRESHOLD_KEY = "thermThreshC";
+static const char* HALDEX_THERMAL_PROTECTION_MODE_KEY = "thermProtMode";
 static const char* LOW_POWER_SLEEP_ENABLED_KEY = "lpSleepOn";
 static const char* LOW_POWER_SLEEP_DELAY_KEY = "lpDelayMs";
 static const char* LOW_POWER_WAKE_TIMER_KEY = "lpWakeSec";
@@ -508,6 +514,22 @@ void storageLoad() {
     logDebugFirmwareEnabled = pref.getBool(LOG_DEBUG_FIRMWARE_ENABLE_KEY, logDebugFirmwareEnabled);
     logDebugNetworkEnabled = pref.getBool(LOG_DEBUG_NETWORK_ENABLE_KEY, logDebugNetworkEnabled);
     logDebugCanEnabled = pref.getBool(LOG_DEBUG_CAN_ENABLE_KEY, logDebugCanEnabled);
+    experimentalFeaturesEnabled = pref.getBool(EXPERIMENTAL_FEATURES_ENABLE_KEY, experimentalFeaturesEnabled);
+    reverseAutoSwitchEnabled = pref.getBool(REVERSE_AUTO_SWITCH_ENABLE_KEY, reverseAutoSwitchEnabled);
+    reverseAutoSwitchMode =
+      (openhaldex_mode_t)pref.getUChar(REVERSE_AUTO_SWITCH_MODE_KEY, (uint8_t)reverseAutoSwitchMode);
+    haldexThermalProtectionEnabled =
+      pref.getBool(HALDEX_THERMAL_PROTECTION_ENABLE_KEY, haldexThermalProtectionEnabled);
+    haldexThermalProtectionThresholdC =
+      pref.getShort(HALDEX_THERMAL_PROTECTION_THRESHOLD_KEY, haldexThermalProtectionThresholdC);
+    haldexThermalProtectionMode =
+      (openhaldex_mode_t)pref.getUChar(HALDEX_THERMAL_PROTECTION_MODE_KEY, (uint8_t)haldexThermalProtectionMode);
+    if (reverseAutoSwitchMode >= openhaldex_mode_t_MAX) {
+      reverseAutoSwitchMode = MODE_FWD;
+    }
+    if (haldexThermalProtectionMode >= openhaldex_mode_t_MAX) {
+      haldexThermalProtectionMode = MODE_FWD;
+    }
     lowPowerSleepEnabled = pref.isKey(LOW_POWER_SLEEP_ENABLED_KEY)
                              ? pref.getBool(LOW_POWER_SLEEP_ENABLED_KEY, lowPowerSleepEnabled)
                              : (haldexGeneration == 5);
@@ -649,6 +671,12 @@ void storageSave() {
   pref.putBool(LOG_DEBUG_FIRMWARE_ENABLE_KEY, logDebugFirmwareEnabled);
   pref.putBool(LOG_DEBUG_NETWORK_ENABLE_KEY, logDebugNetworkEnabled);
   pref.putBool(LOG_DEBUG_CAN_ENABLE_KEY, logDebugCanEnabled);
+  pref.putBool(EXPERIMENTAL_FEATURES_ENABLE_KEY, experimentalFeaturesEnabled);
+  pref.putBool(REVERSE_AUTO_SWITCH_ENABLE_KEY, reverseAutoSwitchEnabled);
+  pref.putUChar(REVERSE_AUTO_SWITCH_MODE_KEY, (uint8_t)reverseAutoSwitchMode);
+  pref.putBool(HALDEX_THERMAL_PROTECTION_ENABLE_KEY, haldexThermalProtectionEnabled);
+  pref.putShort(HALDEX_THERMAL_PROTECTION_THRESHOLD_KEY, haldexThermalProtectionThresholdC);
+  pref.putUChar(HALDEX_THERMAL_PROTECTION_MODE_KEY, (uint8_t)haldexThermalProtectionMode);
   pref.putBool(LOW_POWER_SLEEP_ENABLED_KEY, lowPowerSleepEnabled);
   pref.putUInt(LOW_POWER_SLEEP_DELAY_KEY, lowPowerSleepDelayMs);
   pref.putUInt(LOW_POWER_WAKE_TIMER_KEY, lowPowerWakeTimerSeconds);

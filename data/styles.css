@@ -1794,6 +1794,19 @@ input[type="checkbox"]:focus-visible {
   display: block;
 }
 
+.experimental-feature-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--control-border);
+}
+
+.experimental-feature-block:first-of-type {
+  border-top: none;
+  padding-top: 4px;
+}
+
 .learn-card {
   gap: 12px;
 }

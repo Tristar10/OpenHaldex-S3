@@ -2,6 +2,7 @@
 __pycache__/
 .vscode/*
 !.vscode/extensions.json
+.DS_Store
 
 # UI development folder and can dump viewer
 data/ui-dev/
@@ -9,3 +10,6 @@ data/ui-dev/
 
 # Generated local browser-installer firmware files
 tools/web-installer/build/
+
+# RaceChrono session exports (contain GPS tracks)
+*.vbo

@@ -403,6 +403,81 @@ Licensed under the MIT License (see /data/LICENSE)
 
         <div class="grid-container">
           <div class="col-12">
+            <section class="setup-card experimental-card" id="experimental-features-card">
+              <div class="setup-section-head">
+                <h2>Experimental Features</h2>
+                <label class="ui-check experimental-enable">
+                  <input type="checkbox" id="experimental-enabled" />
+                  <span>Enabled</span>
+                </label>
+              </div>
+              <p class="setup-subtle">
+                Autocross/track automations that act on CAN signals this build has not yet been
+                road-tested to confirm (gear position, Haldex clutch temperature). Leave off until
+                you have verified those readings are accurate for your car. Gen 5 only; a no-op on
+                other Haldex generations.
+              </p>
+
+              <div class="experimental-feature-block">
+                <label class="ui-toggle-row mode-trigger-toggle-row">
+                  <input id="reverse-switch-enabled" type="checkbox" />
+                  <span>Switch mode in reverse</span>
+                </label>
+                <div class="mode-trigger-grid">
+                  <label class="ui-field">
+                    <span class="ui-field-label">Target mode</span>
+                    <select id="reverse-switch-mode" class="ui-select">
+                      <option value="FWD">FWD</option>
+                      <option value="STOCK">Stock</option>
+                      <option value="5050">50:50</option>
+                      <option value="6040">60:40</option>
+                      <option value="7030">70:30</option>
+                      <option value="8020">80:20</option>
+                      <option value="9010">90:10</option>
+                    </select>
+                  </label>
+                  <span class="setup-live-value">Reverse: <span id="reverse-switch-status">--</span></span>
+                </div>
+              </div>
+
+              <div class="experimental-feature-block">
+                <label class="ui-toggle-row mode-trigger-toggle-row">
+                  <input id="thermal-protection-enabled" type="checkbox" />
+                  <span>Haldex clutch thermal protection</span>
+                </label>
+                <div class="mode-trigger-grid">
+                  <label class="ui-field">
+                    <span class="ui-field-label">Target mode</span>
+                    <select id="thermal-protection-mode" class="ui-select">
+                      <option value="FWD">FWD</option>
+                      <option value="STOCK">Stock</option>
+                      <option value="5050">50:50</option>
+                      <option value="6040">60:40</option>
+                      <option value="7030">70:30</option>
+                      <option value="8020">80:20</option>
+                      <option value="9010">90:10</option>
+                    </select>
+                  </label>
+                  <label class="ui-field">
+                    <span class="ui-field-label">Threshold (&deg;C)</span>
+                    <input type="number" step="1" id="thermal-protection-threshold" class="ui-input" />
+                  </label>
+                  <span class="setup-live-value">Clutch temp: <span id="thermal-protection-status">--</span></span>
+                </div>
+              </div>
+
+              <div class="mode-trigger-footer">
+                <button type="button" class="setup-btn secondary" id="experimental-save">
+                  Save Experimental Settings
+                </button>
+                <p id="experimental-status" class="setup-status pending">Not loaded yet.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="grid-container">
+          <div class="col-12">
             <section class="setup-card learn-card" id="learn-calibration-card">
               <div class="setup-section-head">
                 <h2>Calibrate Haldex Output</h2>

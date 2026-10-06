@@ -1,6 +1,6 @@
 {
-  "version": "v1.1",
-  "notes": "OpenHaldex-S3 v1.1 adds Gen 5 parked sleep power saving",
+  "version": "v1.1.1",
+  "notes": "OpenHaldex-S3 v1.1.1 moves RaceChrono telemetry to WiFi and adds experimental autocross/track features",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

@@ -36,6 +36,37 @@ uint16_t received_vehicle_rpm = 0;
 uint16_t received_vehicle_boost = 0;
 uint8_t haldexGeneration = 0;
 
+uint16_t received_wheel_speed_fl = 0;
+uint16_t received_wheel_speed_fr = 0;
+uint16_t received_wheel_speed_rl = 0;
+uint16_t received_wheel_speed_rr = 0;
+
+int16_t received_haldex_clutch_temp_c = 0;
+bool received_haldex_clutch_temp_valid = false;
+
+int16_t received_steering_angle_decidegrees = 0;
+int16_t received_brake_pressure_decibar = 0;
+int16_t received_oil_temp_c = 0;
+int16_t received_coolant_temp_c = 0;
+int16_t received_trans_temp_c = 0;
+uint8_t received_gear_number = 0;
+int16_t received_oil_pressure_decibar = 0;
+bool received_abs_active = false;
+bool received_esp_active = false;
+bool received_eds_active = false;
+int16_t received_intake_air_temp_c = 0;
+int16_t received_engine_torque_nm = 0;
+bool received_reverse_active = false;
+
+bool experimentalFeaturesEnabled = false;
+
+bool reverseAutoSwitchEnabled = false;
+openhaldex_mode_t reverseAutoSwitchMode = MODE_FWD;
+
+bool haldexThermalProtectionEnabled = false;
+int16_t haldexThermalProtectionThresholdC = 120;
+openhaldex_mode_t haldexThermalProtectionMode = MODE_FWD;
+
 bool isStandalone = false;
 bool isGen1Standalone = false;
 bool isGen2Standalone = false;
@@ -339,6 +370,17 @@ bool modeTriggerOverrideActive() {
 }
 
 openhaldex_mode_t openhaldexEffectiveMode() {
+  if (experimentalFeaturesEnabled) {
+    // Thermal protection takes priority over the reverse switch: an
+    // overheating coupling matters more than which gear is selected.
+    if (haldexThermalProtectionEnabled && received_haldex_clutch_temp_valid &&
+        received_haldex_clutch_temp_c >= haldexThermalProtectionThresholdC) {
+      return haldexThermalProtectionMode;
+    }
+    if (reverseAutoSwitchEnabled && received_reverse_active) {
+      return reverseAutoSwitchMode;
+    }
+  }
   if (modeTriggerOverrideActive()) {
     return (mode_trigger_mode < openhaldex_mode_t_MAX) ? mode_trigger_mode : MODE_MAP;
   }

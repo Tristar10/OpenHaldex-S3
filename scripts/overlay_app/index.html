@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenHaldex Telemetry Overlay</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <h1>OpenHaldex Telemetry Overlay</h1>
+  <p class="subtitle">Generate a transparent HUD overlay video from a RaceChrono .vbo export.</p>
+
+  <div class="layout">
+    <div class="col-main">
+      <div class="panel" id="upload-section">
+        <h2>1. Load .vbo</h2>
+        <div id="dropzone">
+          Drop a RaceChrono <strong>.vbo</strong> export here, or click to choose a file
+          <input type="file" id="file-input" accept=".vbo" style="display:none">
+        </div>
+        <div class="reload-hint" id="reload-hint">Loaded <span id="loaded-filename"></span> &mdash; click to load a different file</div>
+        <div id="error-box"></div>
+      </div>
+
+      <div class="panel" id="session-panel" style="display:none">
+        <h2>2. Session</h2>
+        <div class="session-meta">
+          <div>Duration<strong id="meta-duration">&mdash;</strong></div>
+          <div>Connected telemetry rows<strong id="meta-rows">&mdash;</strong></div>
+        </div>
+        <div id="preview-wrap">
+          <img id="preview-img">
+        </div>
+        <div class="scrub-row">
+          <input type="range" id="scrub" min="0" max="0" step="0.1" value="0">
+          <span id="scrub-time">0:00.0</span>
+        </div>
+      </div>
+
+      <div class="panel" id="performance-panel" style="display:none">
+        <h2>3. Performance</h2>
+        <p class="hint">Peak G is the running max for the whole session. Best run splits (0-100km/h, 0-60mph, 1/4 mile) come from a single detected launch each - a clean, roughly monotonic run from near-standstill. On a technical course these often show &mdash; and that's expected: a corner mid-run aborts the detection rather than reporting a misleadingly slow split.</p>
+        <div class="perf-grid">
+          <div class="perf-stat"><span class="label">Peak lateral G</span><strong id="perf-lat-g">&mdash;</strong></div>
+          <div class="perf-stat"><span class="label">Peak accel G</span><strong id="perf-accel-g">&mdash;</strong></div>
+          <div class="perf-stat"><span class="label">Peak brake G</span><strong id="perf-brake-g">&mdash;</strong></div>
+          <div class="perf-stat"><span class="label">0-100 km/h</span><strong id="perf-0-100">&mdash;</strong></div>
+          <div class="perf-stat"><span class="label">0-60 mph</span><strong id="perf-0-60">&mdash;</strong></div>
+          <div class="perf-stat"><span class="label">1/4 mile</span><strong id="perf-quarter">&mdash;</strong></div>
+        </div>
+      </div>
+
+      <div class="panel" id="channels-panel" style="display:none">
+        <h2>4. Channel check</h2>
+        <p class="hint">Channels flagged DEAD showed no variation anywhere in this session - likely the CAN signal isn't present on this car/bus. They'll still render (as 0 or &mdash;) but won't be meaningful.</p>
+        <div class="channel-list" id="channel-list"></div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <div class="panel">
+        <h2>5. Render</h2>
+        <div class="field">
+          <label for="fps-input">Frame rate</label>
+          <input type="number" id="fps-input" value="20" min="1" max="60" step="1">
+        </div>
+        <div class="field">
+          <label for="format-select">Format</label>
+          <select id="format-select">
+            <option value="prores" selected>ProRes 4444 (.mov, large, alpha)</option>
+            <option value="webm">WebM / VP9 (small, alpha)</option>
+          </select>
+          <div class="hint" id="format-hint"></div>
+        </div>
+        <button class="primary" id="render-btn" disabled>Render overlay</button>
+        <div id="progress-wrap">
+          <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+          <div id="progress-text"></div>
+        </div>
+        <div id="download-row">
+          <a id="download-link" href="#" download>Download overlay</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

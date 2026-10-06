@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include <math.h>
+
 #include "functions/can/can.h"
 #include "functions/config/config.h"
 #include "functions/core/state.h"
@@ -1037,4 +1039,36 @@ void diagUdsWriteResultJson(JsonObject out, const diag_uds_result_t& result) {
   }
   JsonObject route = out["route"].to<JsonObject>();
   writeRouteJson(route, result.route);
+}
+
+namespace {
+
+// Gen 5 AllWheelContr DID for Clutch_Temperature: 16-bit little-endian raw,
+// degC = raw * 0.01 - 227.67. From the controller's own measured-value
+// catalog (data/openhaldex-gen5-mwb-compact.json).
+constexpr uint16_t kHaldexClutchTempDid = 0x2BF1;
+constexpr uint32_t kHaldexTempPollIntervalMs = 2000;
+
+void haldexTempPollTask(void* arg) {
+  (void)arg;
+  for (;;) {
+    diag_uds_result_t result = {};
+    if (diagUdsReadDataByIdentifier(kHaldexClutchTempDid, result, 1200) && result.payloadLen >= 5 &&
+        result.payload[0] == 0x62 && result.payload[1] == (uint8_t)(kHaldexClutchTempDid >> 8) &&
+        result.payload[2] == (uint8_t)(kHaldexClutchTempDid & 0xFF)) {
+      const uint16_t raw = (uint16_t)result.payload[3] | ((uint16_t)result.payload[4] << 8);
+      received_haldex_clutch_temp_c = (int16_t)lroundf(raw * 0.01f - 227.67f);
+      received_haldex_clutch_temp_valid = true;
+    }
+    vTaskDelay(pdMS_TO_TICKS(kHaldexTempPollIntervalMs));
+  }
+}
+
+} // namespace
+
+void diagUdsHaldexTempPollInit() {
+  if (haldexGeneration != 5) {
+    return;
+  }
+  xTaskCreatePinnedToCore(haldexTempPollTask, "haldexTempPoll", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 }

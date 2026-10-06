@@ -70,6 +70,7 @@
 #define MOTOR_11 0x0A7
 #define MOTOR_12 0x0A8
 #define GETRIEBE_11 0x0AD
+#define GETRIEBE_12 0x0AE
 #define GETRIEBE_17 0x0B1
 #define ESP_19 0x0B2
 #define ESP_21 0x0FD

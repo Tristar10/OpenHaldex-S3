@@ -708,6 +708,16 @@ function initSetupPage() {
   const modeTriggerStatus = document.getElementById("mode-trigger-status");
   const lowPowerSleepEnabled = document.getElementById("low-power-sleep-enabled");
   const lowPowerStatus = document.getElementById("low-power-status");
+  const experimentalEnabled = document.getElementById("experimental-enabled");
+  const reverseSwitchEnabled = document.getElementById("reverse-switch-enabled");
+  const reverseSwitchMode = document.getElementById("reverse-switch-mode");
+  const reverseSwitchStatus = document.getElementById("reverse-switch-status");
+  const thermalProtectionEnabled = document.getElementById("thermal-protection-enabled");
+  const thermalProtectionMode = document.getElementById("thermal-protection-mode");
+  const thermalProtectionThreshold = document.getElementById("thermal-protection-threshold");
+  const thermalProtectionStatus = document.getElementById("thermal-protection-status");
+  const experimentalSaveButton = document.getElementById("experimental-save");
+  const experimentalStatus = document.getElementById("experimental-status");
 
   if (
     !signalPicker ||
@@ -1384,6 +1394,93 @@ function initSetupPage() {
     }
   }
 
+  function setExperimentalStatus(message, isPending = false) {
+    if (!experimentalStatus) {
+      return;
+    }
+    experimentalStatus.textContent = message;
+    experimentalStatus.classList.toggle("pending", Boolean(isPending));
+  }
+
+  async function refreshExperimentalSettings() {
+    if (!experimentalEnabled || !reverseSwitchEnabled || !thermalProtectionEnabled) {
+      return;
+    }
+    setExperimentalStatus("Loading...", true);
+    try {
+      const status = await apiJson("/api/status");
+      const experimental = status.experimental || {};
+      experimentalEnabled.checked = Boolean(experimental.enabled);
+      reverseSwitchEnabled.checked = Boolean(experimental.reverseAutoSwitchEnabled);
+      if (reverseSwitchMode) {
+        reverseSwitchMode.value = normalizeModeName(experimental.reverseAutoSwitchMode || "FWD");
+      }
+      thermalProtectionEnabled.checked = Boolean(experimental.haldexThermalProtectionEnabled);
+      if (thermalProtectionMode) {
+        thermalProtectionMode.value = normalizeModeName(experimental.haldexThermalProtectionMode || "FWD");
+      }
+      if (thermalProtectionThreshold && document.activeElement !== thermalProtectionThreshold) {
+        thermalProtectionThreshold.value = String(
+          Number.isFinite(Number(experimental.haldexThermalProtectionThresholdC))
+            ? Number(experimental.haldexThermalProtectionThresholdC)
+            : 120
+        );
+      }
+      renderExperimentalLiveStatus(experimental);
+      setExperimentalStatus("Loaded");
+    } catch (error) {
+      setExperimentalStatus(`Load failed: ${error.message}`);
+    }
+  }
+
+  function renderExperimentalLiveStatus(experimental) {
+    if (reverseSwitchStatus) {
+      reverseSwitchStatus.textContent = experimental.reverseActive ? "Yes" : "No";
+    }
+    if (thermalProtectionStatus) {
+      thermalProtectionStatus.textContent = experimental.haldexClutchTempValid
+        ? `${experimental.haldexClutchTempC} °C`
+        : "not read yet";
+    }
+  }
+
+  async function pollExperimentalLiveStatus() {
+    if (!reverseSwitchStatus && !thermalProtectionStatus) {
+      return;
+    }
+    try {
+      const status = await apiJson("/api/status");
+      renderExperimentalLiveStatus(status.experimental || {});
+    } catch (error) {
+      // Best-effort live readout only; ignore transient failures.
+    }
+  }
+
+  async function applyExperimentalSettings() {
+    if (!experimentalEnabled || !reverseSwitchEnabled || !thermalProtectionEnabled) {
+      return;
+    }
+    setExperimentalStatus("Saving...", true);
+    try {
+      const payload = {
+        experimentalFeaturesEnabled: Boolean(experimentalEnabled.checked),
+        reverseAutoSwitchEnabled: Boolean(reverseSwitchEnabled.checked),
+        reverseAutoSwitchMode: normalizeModeName(reverseSwitchMode ? reverseSwitchMode.value : "FWD"),
+        haldexThermalProtectionEnabled: Boolean(thermalProtectionEnabled.checked),
+        haldexThermalProtectionThresholdC: Number(thermalProtectionThreshold ? thermalProtectionThreshold.value : 120) || 120,
+        haldexThermalProtectionMode: normalizeModeName(thermalProtectionMode ? thermalProtectionMode.value : "FWD"),
+      };
+      await apiJson("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setExperimentalStatus("Saved");
+    } catch (error) {
+      setExperimentalStatus(`Save failed: ${error.message}`);
+    }
+  }
+
   function renderAll(options = {}) {
     const skipSignalPicker = Boolean(options.skipSignalPicker);
     if (skipSignalPicker) {
@@ -1871,6 +1968,9 @@ function initSetupPage() {
   if (saveProfileButton) {
     saveProfileButton.addEventListener("click", saveProfile);
   }
+  if (experimentalSaveButton) {
+    experimentalSaveButton.addEventListener("click", applyExperimentalSettings);
+  }
 
   initFromStoredProfile().finally(() => {
     renderAll();
@@ -1882,12 +1982,16 @@ function initSetupPage() {
     );
     setModeTriggerStatus("Default follows the ESP/traction button signal.", true);
 
+    refreshExperimentalSettings();
+
     loadSignals();
     pollTimer = window.setInterval(loadSignals, 1000);
+    const experimentalPollTimer = window.setInterval(pollExperimentalLiveStatus, 2000);
     window.addEventListener("beforeunload", () => {
       if (pollTimer) {
         window.clearInterval(pollTimer);
       }
+      window.clearInterval(experimentalPollTimer);
     });
   });
 }

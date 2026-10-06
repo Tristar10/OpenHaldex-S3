@@ -33,6 +33,12 @@ struct diag_uds_result_t {
 
 void diagUdsInit();
 
+// Starts a low-priority background poll of Haldex clutch temperature (Gen 5
+// only; a no-op on other generations) into received_haldex_clutch_temp_c.
+// Safe to call alongside on-demand diagnostics page use - requests are
+// serialized through the same mutex as diagUdsReadDataByIdentifier.
+void diagUdsHaldexTempPollInit();
+
 // Called from the Haldex receive loop. Returns true when a frame belongs to an
 // internal diagnostic transaction and should not be rebroadcast to chassis CAN.
 bool diagUdsObserveHaldexFrame(const twai_message_t& frame);

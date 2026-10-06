@@ -459,6 +459,10 @@ void parseCAN_chs(void* arg) {
               (uint16_t)(((uint16_t)rx_msg_chs().data[5] << 1) | (rx_msg_chs().data[4] >> 7)) & 0x01FF;
             const int32_t boost_mbar = (int32_t)(mo_ladedruck_raw * 10.0f + 0.5f) - 1000;
             received_vehicle_boost = (boost_mbar > 0) ? (uint16_t)boost_mbar : 0;
+
+            // MO_Istgang: byte1 low nibble. MO_Oeldruck: byte2, scale 0.04 Bar.
+            received_gear_number = rx_msg_chs().data[1] & 0x0F;
+            received_oil_pressure_decibar = (int16_t)lroundf(rx_msg_chs().data[2] * 0.04f * 10.0f);
           }
           break;
 
@@ -478,6 +482,12 @@ void parseCAN_chs(void* arg) {
             const float average_wheel_speed =
               (wheel_speed_hl_raw + wheel_speed_hr_raw + wheel_speed_vl_raw + wheel_speed_vr_raw) * (0.0075f / 4.0f);
 
+            // vl/vr = vorne (front) left/right, hl/hr = hinten (rear) left/right.
+            received_wheel_speed_fl = (uint16_t)(wheel_speed_vl_raw * 0.0075f + 0.5f);
+            received_wheel_speed_fr = (uint16_t)(wheel_speed_vr_raw * 0.0075f + 0.5f);
+            received_wheel_speed_rl = (uint16_t)(wheel_speed_hl_raw * 0.0075f + 0.5f);
+            received_wheel_speed_rr = (uint16_t)(wheel_speed_hr_raw * 0.0075f + 0.5f);
+
             received_vehicle_speed = (uint16_t)(average_wheel_speed + 0.5f);
             vehicle_state.speed = received_vehicle_speed;
             last_abs_speed_ms = millis();
@@ -486,12 +496,73 @@ void parseCAN_chs(void* arg) {
           break;
 
         case ESP_21:
+          if (haldexGeneration == 5) {
+            // ABS_Bremsung bit56, EDS_Eingriff bit60, ESP_Eingriff bit61 - all in byte7.
+            // EDS (electronic differential lock) is the braking intervention XDS is built
+            // on; this bus has no signal distinctly labeled "XDS".
+            received_abs_active = (rx_msg_chs().data[7] >> 0) & 0x01;
+            received_eds_active = (rx_msg_chs().data[7] >> 4) & 0x01;
+            received_esp_active = (rx_msg_chs().data[7] >> 5) & 0x01;
+          }
           if (haldexGeneration == 5 && !speed_mapped_recent &&
               (!abs_speed_valid || (millis() - last_abs_speed_ms) > k_abs_speed_timeout_ms)) {
             received_vehicle_speed = (uint16_t)((((rx_msg_chs().data[5] << 8) | rx_msg_chs().data[4]) * 0.01f) + 0.5f);
             vehicle_state.speed = received_vehicle_speed;
             last_abs_speed_ms = millis();
             abs_speed_valid = true;
+          }
+          break;
+
+        case LWI_01:
+          // LWI_Lenkradwinkel: bit16 len13 LE magnitude, sign bit29. Stored as
+          // tenths of a degree to keep one decimal of precision as an integer.
+          if (haldexGeneration == 5) {
+            const uint16_t raw = (uint16_t)(rx_msg_chs().data[2] | ((rx_msg_chs().data[3] & 0x1F) << 8));
+            const bool negative = (rx_msg_chs().data[3] >> 5) & 0x01;
+            const float angle_deg = negative ? -(raw * 0.1f) : (raw * 0.1f);
+            received_steering_angle_decidegrees = (int16_t)lroundf(angle_deg * 10.0f);
+          }
+          break;
+
+        case ESP_05:
+          // ESP_Bremsdruck: bit16 len10 LE, scale 0.3 Bar, offset -30 Bar.
+          if (haldexGeneration == 5) {
+            const uint16_t raw = (uint16_t)(rx_msg_chs().data[2] | ((rx_msg_chs().data[3] & 0x03) << 8));
+            const float pressure_bar = raw * 0.3f - 30.0f;
+            received_brake_pressure_decibar = (int16_t)lroundf(pressure_bar * 10.0f);
+          }
+          break;
+
+        case MOTOR_07:
+          // MO_Ansaugluft_Temp: byte1, scale 0.75, offset -48degC. MO_Oel_Temp:
+          // byte2, scale 1, offset -60degC. MO_Kuehlmittel_Temp: byte3, scale
+          // 0.75, offset -48degC.
+          if (haldexGeneration == 5) {
+            received_intake_air_temp_c = (int16_t)lroundf(rx_msg_chs().data[1] * 0.75f - 48.0f);
+            received_oil_temp_c = (int16_t)rx_msg_chs().data[2] - 60;
+            received_coolant_temp_c = (int16_t)lroundf(rx_msg_chs().data[3] * 0.75f - 48.0f);
+          }
+          break;
+
+        case GETRIEBE_12:
+          // GE_Aufnahmemoment: bit48 len10 LE, scale 1, offset -509 Nm. DSG only.
+          if (haldexGeneration == 5) {
+            const uint16_t raw = (uint16_t)(rx_msg_chs().data[6] | ((rx_msg_chs().data[7] & 0x03) << 8));
+            received_engine_torque_nm = (int16_t)raw - 509;
+          }
+          break;
+
+        case GETRIEBE_14:
+          // GE_Sumpftemperatur: byte7, scale 1, offset -58degC.
+          if (haldexGeneration == 5) {
+            received_trans_temp_c = (int16_t)rx_msg_chs().data[7] - 58;
+          }
+          break;
+
+        case GATEWAY_72:
+          // BCM1_Rueckfahrlicht_Schalter (reverse light switch): bit25 = byte3 bit1.
+          if (haldexGeneration == 5) {
+            received_reverse_active = (rx_msg_chs().data[3] >> 1) & 0x01;
           }
           break;
 

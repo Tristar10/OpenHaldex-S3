@@ -99,6 +99,49 @@ extern uint16_t received_vehicle_rpm;
 extern uint16_t received_vehicle_boost;
 extern uint8_t haldexGeneration;
 
+// Gen 5 (MQB) per-corner wheel speed, km/h. Populated alongside the averaged
+// received_vehicle_speed; zero until the first ESP_19 frame is seen.
+extern uint16_t received_wheel_speed_fl;
+extern uint16_t received_wheel_speed_fr;
+extern uint16_t received_wheel_speed_rl;
+extern uint16_t received_wheel_speed_rr;
+
+// Haldex clutch (coupling) temperature, degrees C. Polled via UDS (DID
+// 0x2BF1) rather than passive CAN, so it updates at a few seconds' interval
+// and received_haldex_clutch_temp_valid stays false until the first
+// successful read.
+extern int16_t received_haldex_clutch_temp_c;
+extern bool received_haldex_clutch_temp_valid;
+
+// Gen 5 (MQB) only, from LWI_01/ESP_05/Motor_07/Getriebe_14. Steering angle
+// and brake pressure carry one decimal place (value is degrees/Bar x10) to
+// preserve precision in an integer field; temperatures are whole degrees C.
+extern int16_t received_steering_angle_decidegrees;
+extern int16_t received_brake_pressure_decibar;
+extern int16_t received_oil_temp_c;
+extern int16_t received_coolant_temp_c;
+extern int16_t received_trans_temp_c;
+extern uint8_t received_gear_number;
+extern int16_t received_oil_pressure_decibar;
+extern bool received_abs_active;
+extern bool received_esp_active;
+extern bool received_eds_active; // closest available signal to "XDS"; see docs/RACECHRONO_WIFI.md
+extern int16_t received_intake_air_temp_c;
+extern int16_t received_engine_torque_nm; // Getriebe_12 GE_Aufnahmemoment (gearbox input torque); DSG only
+extern bool received_reverse_active;      // Gateway_72 BCM1_Rueckfahrlicht_Schalter (reverse light switch)
+
+// Experimental autocross/track features - gated behind a master toggle since
+// the CAN signals they act on (gear, Haldex clutch temp) have not yet been
+// road-tested for accuracy. Gen 5 only; see docs/EXPERIMENTAL_FEATURES.md.
+extern bool experimentalFeaturesEnabled;
+
+extern bool reverseAutoSwitchEnabled;
+extern openhaldex_mode_t reverseAutoSwitchMode;
+
+extern bool haldexThermalProtectionEnabled;
+extern int16_t haldexThermalProtectionThresholdC;
+extern openhaldex_mode_t haldexThermalProtectionMode;
+
 // Flags
 extern bool isStandalone;
 extern bool isGen1Standalone;

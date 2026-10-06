@@ -386,14 +386,22 @@ It is not intended to be a full SavvyCAN replacement or a high-rate real-time Wi
 ## RaceChrono WiFi telemetry
 
 The firmware runs a RaceChrono DIY `$RC3` telemetry server over the existing
-Wi-Fi AP, streaming decoded speed, RPM, accelerator, requested lock, actual
-lock, and active mode. Telemetry reuses the Wi-Fi radio already required for
-the WebUI instead of adding a second (Bluetooth) radio, and is best-effort and
+Wi-Fi AP, streaming decoded speed, RPM, accelerator, actual lock, active
+mode, and (Haldex Gen 5 only) ABS/ESP/EDS status, gear, engine torque, boost,
+oil/coolant/intake-air temperature, oil pressure, steering angle, brake
+pressure, per-wheel speed, and Haldex clutch temperature. Telemetry reuses
+the Wi-Fi radio already required for the WebUI instead of adding a second
+(Bluetooth) radio, and is best-effort and
 isolated from the Haldex CAN bridge: a disconnected client never delays
 control traffic.
 
 See [RaceChrono WiFi telemetry](docs/RACECHRONO_WIFI.md) for phone setup,
 channel mapping, limits, and a no-harness bench test.
+
+Since RaceChrono's RC3 channels can't be renamed or labeled in-app, a local
+tool turns a RaceChrono `.vbo` export of a session into a labeled,
+transparent-background video overlay you can drop onto footage in any
+video editor - see [Telemetry video overlay](docs/VIDEO_OVERLAY.md).
 
 ## Maps and Filesystem
 

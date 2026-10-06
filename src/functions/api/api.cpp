@@ -635,6 +635,17 @@ static void handleStatus(AsyncWebServerRequest* request) {
   doc["lockReleaseRatePctPerSec"] = lockReleaseRatePctPerSec;
   doc["uptimeMs"] = millis();
 
+  JsonObject experimental = doc["experimental"].to<JsonObject>();
+  experimental["enabled"] = experimentalFeaturesEnabled;
+  experimental["reverseAutoSwitchEnabled"] = reverseAutoSwitchEnabled;
+  experimental["reverseAutoSwitchMode"] = modeName(reverseAutoSwitchMode);
+  experimental["reverseActive"] = received_reverse_active;
+  experimental["haldexThermalProtectionEnabled"] = haldexThermalProtectionEnabled;
+  experimental["haldexThermalProtectionThresholdC"] = haldexThermalProtectionThresholdC;
+  experimental["haldexThermalProtectionMode"] = modeName(haldexThermalProtectionMode);
+  experimental["haldexClutchTempC"] = received_haldex_clutch_temp_c;
+  experimental["haldexClutchTempValid"] = received_haldex_clutch_temp_valid;
+
   JsonObject logging = doc["logging"].to<JsonObject>();
   logging["masterEnabled"] = logToFileEnabled || logSerialEnabled || logCanToFileEnabled || logErrorToFileEnabled ||
                              logDebugFirmwareEnabled || logDebugNetworkEnabled || logDebugCanEnabled;
@@ -958,6 +969,18 @@ static void handleSettingsJson(AsyncWebServerRequest* request, const String& bod
   bool next_log_debug_network = logDebugNetworkEnabled;
   bool log_debug_can_set = false;
   bool next_log_debug_can = logDebugCanEnabled;
+  bool experimental_enabled_set = false;
+  bool next_experimental_enabled = experimentalFeaturesEnabled;
+  bool reverse_auto_switch_enabled_set = false;
+  bool next_reverse_auto_switch_enabled = reverseAutoSwitchEnabled;
+  bool reverse_auto_switch_mode_set = false;
+  openhaldex_mode_t next_reverse_auto_switch_mode = reverseAutoSwitchMode;
+  bool haldex_thermal_protection_enabled_set = false;
+  bool next_haldex_thermal_protection_enabled = haldexThermalProtectionEnabled;
+  bool haldex_thermal_protection_threshold_set = false;
+  int16_t next_haldex_thermal_protection_threshold = haldexThermalProtectionThresholdC;
+  bool haldex_thermal_protection_mode_set = false;
+  openhaldex_mode_t next_haldex_thermal_protection_mode = haldexThermalProtectionMode;
   bool disengage_map_set = false;
   uint16_t next_disengage_map = disengageUnderSpeedMap;
   bool disengage_speed_mode_set = false;
@@ -1112,6 +1135,42 @@ static void handleSettingsJson(AsyncWebServerRequest* request, const String& bod
   if (doc.containsKey("logDebugCanEnabled")) {
     log_debug_can_set = true;
     next_log_debug_can = (bool)doc["logDebugCanEnabled"];
+  }
+
+  if (doc.containsKey("experimentalFeaturesEnabled")) {
+    experimental_enabled_set = true;
+    next_experimental_enabled = (bool)doc["experimentalFeaturesEnabled"];
+  }
+  if (doc.containsKey("reverseAutoSwitchEnabled")) {
+    reverse_auto_switch_enabled_set = true;
+    next_reverse_auto_switch_enabled = (bool)doc["reverseAutoSwitchEnabled"];
+  }
+  if (doc.containsKey("reverseAutoSwitchMode")) {
+    if (!parseModeName(String(doc["reverseAutoSwitchMode"] | ""), next_reverse_auto_switch_mode)) {
+      sendError(request, 400, "invalid reverseAutoSwitchMode");
+      return;
+    }
+    reverse_auto_switch_mode_set = true;
+  }
+  if (doc.containsKey("haldexThermalProtectionEnabled")) {
+    haldex_thermal_protection_enabled_set = true;
+    next_haldex_thermal_protection_enabled = (bool)doc["haldexThermalProtectionEnabled"];
+  }
+  if (doc.containsKey("haldexThermalProtectionThresholdC")) {
+    int v = doc["haldexThermalProtectionThresholdC"];
+    if (v < -40 || v > 250) {
+      sendError(request, 400, "invalid haldexThermalProtectionThresholdC");
+      return;
+    }
+    haldex_thermal_protection_threshold_set = true;
+    next_haldex_thermal_protection_threshold = (int16_t)v;
+  }
+  if (doc.containsKey("haldexThermalProtectionMode")) {
+    if (!parseModeName(String(doc["haldexThermalProtectionMode"] | ""), next_haldex_thermal_protection_mode)) {
+      sendError(request, 400, "invalid haldexThermalProtectionMode");
+      return;
+    }
+    haldex_thermal_protection_mode_set = true;
   }
 
   if (doc.containsKey("lockReleaseRatePctPerSec")) {
@@ -1356,6 +1415,30 @@ static void handleSettingsJson(AsyncWebServerRequest* request, const String& bod
   }
   if (log_debug_can_set) {
     logDebugCanEnabled = next_log_debug_can;
+    dirty = true;
+  }
+  if (experimental_enabled_set) {
+    experimentalFeaturesEnabled = next_experimental_enabled;
+    dirty = true;
+  }
+  if (reverse_auto_switch_enabled_set) {
+    reverseAutoSwitchEnabled = next_reverse_auto_switch_enabled;
+    dirty = true;
+  }
+  if (reverse_auto_switch_mode_set) {
+    reverseAutoSwitchMode = next_reverse_auto_switch_mode;
+    dirty = true;
+  }
+  if (haldex_thermal_protection_enabled_set) {
+    haldexThermalProtectionEnabled = next_haldex_thermal_protection_enabled;
+    dirty = true;
+  }
+  if (haldex_thermal_protection_threshold_set) {
+    haldexThermalProtectionThresholdC = next_haldex_thermal_protection_threshold;
+    dirty = true;
+  }
+  if (haldex_thermal_protection_mode_set) {
+    haldexThermalProtectionMode = next_haldex_thermal_protection_mode;
     dirty = true;
   }
   if (disengage_map_set) {

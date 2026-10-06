@@ -276,6 +276,7 @@ void setup() {
   filelogInit();
   storageLoad();
   diagUdsInit();
+  diagUdsHaldexTempPollInit();
   LOG_INFO("system", "Storage loaded and logger active");
 
   tasksInit();
