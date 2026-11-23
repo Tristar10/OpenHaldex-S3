@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <esp_attr.h>
+#include <esp_system.h>
 
 #include "functions/config/config.h"
 #include "functions/core/state.h"
@@ -48,6 +49,7 @@ struct BleBootGuard {
 };
 
 // RTC memory survives a software/panic reset but is cleared by removing power.
+// See racechronoBleInit(): only a crash skips BLE, and only for one boot.
 // If BLE crashes during initialization, the next boot remains usable with BLE
 // disabled rather than entering a permanent reboot loop.
 RTC_NOINIT_ATTR BleBootGuard g_ble_boot_guard;
@@ -457,12 +459,28 @@ void racechronoBleInit() {
 
   if (g_ble_boot_guard.magic == kBleBootGuardMagic && g_ble_boot_guard.phase != BleBootPhase::Unknown &&
       g_ble_boot_guard.phase != BleBootPhase::Running) {
-    delay(kBleStartupDelayMs);
-    Serial.printf("[racechrono] BLE disabled after startup failed at stage %u; power-cycle to retry\n",
-                  (unsigned int)g_ble_boot_guard.phase);
-    Serial.flush();
-    LOG_ERROR("racechrono", "BLE disabled after an earlier startup failure; power-cycle to retry");
-    return;
+    // The previous boot did not finish BLE startup. Only a real crash (panic,
+    // watchdog, brownout) or a clean startup failure skips BLE, and only for
+    // this one boot: the guard is cleared so the next reset tries again. A
+    // normal reset that merely interrupted startup (USB serial open, flashing,
+    // RESET button, power-on) retries right away. Previously any of these left
+    // BLE off until power was removed, which in the car may be never.
+    const esp_reset_reason_t reason = esp_reset_reason();
+    const bool crashed = reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT ||
+                         reason == ESP_RST_WDT || reason == ESP_RST_BROWNOUT;
+    const BleBootPhase failed_phase = g_ble_boot_guard.phase;
+    g_ble_boot_guard.phase = BleBootPhase::Unknown;
+    if (crashed || failed_phase == BleBootPhase::Failed) {
+      delay(kBleStartupDelayMs);
+      Serial.printf("[racechrono] BLE skipped this boot (previous startup %s at stage %u, reset reason %d); "
+                    "retrying on next reset\n",
+                    crashed ? "crashed" : "failed", (unsigned int)failed_phase, (int)reason);
+      Serial.flush();
+      LOG_ERROR("racechrono", "BLE skipped this boot after a startup failure; retrying on next reset");
+      return;
+    }
+    Serial.printf("[racechrono] Previous BLE startup interrupted by a normal reset (reason %d); retrying\n",
+                  (int)reason);
   }
 
   g_packet_queue = xQueueCreate(kQueueDepth, sizeof(TelemetryPacket));
@@ -473,7 +491,7 @@ void racechronoBleInit() {
 
   if (!initializeBleServer()) {
     markBleStartupFailed();
-    Serial.println("[racechrono] BLE startup failed; disabled until power cycle");
+    Serial.println("[racechrono] BLE startup failed; will retry on next reset");
     Serial.flush();
     return;
   }
