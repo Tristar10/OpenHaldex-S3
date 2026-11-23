@@ -186,7 +186,7 @@ uint16_t ageMs(long tick) {
 //  3 lock target %        4 lock actual %  5 flags A
 //  6-7 Haldex clutch temp C (int16)        8 Haldex generation
 //  9 learn progress %     10-11 chassis frame age ms   12-13 Haldex frame age ms
-//  14 flags B
+//  14 flags B            15-16 steering wheel angle, 0.1 deg (int16)
 // flags A: 0 CAN ready, 1 bus failure, 2 temp protection, 3 coupling open,
 //          4 controller disabled, 5 CAN View capture, 6 clutch temp valid, 7 learning
 // flags B: 0 chassis bus seen, 1 Haldex bus seen, 2 reverse
@@ -194,7 +194,7 @@ void sendLive() {
   if (!g_live || g_live_subscribers == 0 || os_msys_num_free() < kMbufReserve) {
     return;
   }
-  uint8_t p[15] = {};
+  uint8_t p[17] = {};
   p[0] = 1;
   p[1] = (uint8_t)state.mode;
   p[2] = (uint8_t)openhaldexEffectiveMode();
@@ -216,6 +216,9 @@ void sendLive() {
   p[12] = (uint8_t)hdx;
   p[13] = (uint8_t)(hdx >> 8);
   p[14] = (hasCANChassis ? 0x01 : 0) | (hasCANHaldex ? 0x02 : 0) | (received_reverse_active ? 0x04 : 0);
+  const int16_t steering = received_steering_angle_decidegrees;
+  p[15] = (uint8_t)steering;
+  p[16] = (uint8_t)((uint16_t)steering >> 8);
   g_live->notify(p, sizeof(p));
 }
 

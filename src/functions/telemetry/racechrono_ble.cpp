@@ -19,6 +19,9 @@ constexpr uint16_t kRaceChronoServiceUuid = 0x1FF8;
 constexpr uint16_t kCanDataCharacteristicUuid = 0x0001;
 constexpr uint16_t kCanFilterCharacteristicUuid = 0x0002;
 constexpr uint32_t kOpenHaldexTelemetryPid = 0xFFFF0001UL;
+// Second decoded packet: chassis values that need firmware-side decoding (e.g.
+// the steering sign fix), so RaceChrono doesn't have to decode raw frames.
+constexpr uint32_t kOpenHaldexChassisPid = 0xFFFF0002UL;
 constexpr uint16_t kMinNotifyIntervalMs = 20; // Protect the control loop: max 50 Hz per selected PID.
 constexpr uint16_t kDefaultTelemetryIntervalMs = 50;
 constexpr uint8_t kFilterCapacity = 32;
@@ -198,6 +201,25 @@ void queueDecodedTelemetry() {
   payload[6] = (uint8_t)constrain((int)received_haldex_engagement, 0, 100);
   payload[7] = (uint8_t)openhaldexEffectiveMode();
   queuePacket(kOpenHaldexTelemetryPid, payload, sizeof(payload));
+
+  // 0xFFFF0002 (big-endian, for RaceChrono equations):
+  //  0-1 steering angle, 0.1 deg, signed    2-3 brake pressure, 0.1 bar, signed
+  //  4-5 Haldex clutch temp C, signed (0x7FFF = not yet read)
+  //  6 gear   7 flags: bit0 ABS, bit1 ESP, bit2 EDS, bit3 reverse
+  uint8_t chassis[8] = {};
+  const int16_t steering = received_steering_angle_decidegrees;
+  const int16_t brake = received_brake_pressure_decibar;
+  const int16_t clutch = received_haldex_clutch_temp_valid ? received_haldex_clutch_temp_c : (int16_t)0x7FFF;
+  chassis[0] = (uint8_t)((uint16_t)steering >> 8);
+  chassis[1] = (uint8_t)steering;
+  chassis[2] = (uint8_t)((uint16_t)brake >> 8);
+  chassis[3] = (uint8_t)brake;
+  chassis[4] = (uint8_t)((uint16_t)clutch >> 8);
+  chassis[5] = (uint8_t)clutch;
+  chassis[6] = received_gear_number;
+  chassis[7] = (received_abs_active ? 0x01 : 0) | (received_esp_active ? 0x02 : 0) | (received_eds_active ? 0x04 : 0) |
+               (received_reverse_active ? 0x08 : 0);
+  queuePacket(kOpenHaldexChassisPid, chassis, sizeof(chassis));
 }
 
 // Returns the subscriber count after the change.

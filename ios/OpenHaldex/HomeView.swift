@@ -42,6 +42,9 @@ struct HomeView: View {
                     }
 
                     ratioCard
+                    HaldexVisual(lockActual: lockActual, lockTarget: lockTarget,
+                                 steeringDeg: live?.steeringDeg, off: mode == "STOCK")
+                        .card()
                     flagsRow
                     haldexCard
                     if captureActive {
@@ -63,17 +66,24 @@ struct HomeView: View {
     private var ratioCard: some View {
         let rear = Self.lockModes[effective].map(Double.init) ?? rearBias
         return VStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 18) {
-                ratioNumber(Int(100 - rear), "FRONT")
-                Text(":").font(.largeTitle.bold()).foregroundStyle(.secondary)
-                ratioNumber(Int(rear), "REAR")
+            if mode == "STOCK" {
+                // Off: the stock Haldex controller is in charge, so a ratio
+                // and slider would be misleading.
+                Text("OFF").font(.system(size: 44, weight: .bold, design: .rounded))
+                Text("Stock Haldex control").font(.caption).foregroundStyle(.secondary)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 18) {
+                    ratioNumber(Int(100 - rear), "FRONT")
+                    Text(":").font(.largeTitle.bold()).foregroundStyle(.secondary)
+                    ratioNumber(Int(rear), "REAR")
+                }
+                Slider(value: $rearBias, in: 0...50, step: 10) { editing in
+                    editingBias = editing
+                    if !editing { model.setMode(lockMode(for: rearBias)) }
+                }
+                Text("Slide to set the Lock ratio (applies Lock mode)")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            Slider(value: $rearBias, in: 0...50, step: 10) { editing in
-                editingBias = editing
-                if !editing { model.setMode(lockMode(for: rearBias)) }
-            }
-            Text("Slide to set the Lock ratio (applies Lock mode)")
-                .font(.caption).foregroundStyle(.secondary)
             if effective != mode && !effective.isEmpty {
                 Text("Effective mode: \(modeLabel(effective)) (trigger/protection override)")
                     .font(.caption).foregroundStyle(.orange)
