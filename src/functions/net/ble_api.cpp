@@ -266,11 +266,17 @@ bool bleApiAttach(NimBLEServer* server) {
   // Writes require an encrypted (bonded) link: iOS pairs automatically with
   // "Just Works" on the first write. Reading LIVE also triggers pairing, so the
   // app reads it once right after connecting.
+  // OH_BLE_API_ENCRYPT=0 only for bench tests from a computer that cannot
+  // complete pairing unattended; production builds always require it.
+#ifndef OH_BLE_API_ENCRYPT
+#define OH_BLE_API_ENCRYPT 1
+#endif
+  constexpr uint16_t kWriteEnc = OH_BLE_API_ENCRYPT ? NIMBLE_PROPERTY::WRITE_ENC : 0;
+  constexpr uint16_t kReadEnc = OH_BLE_API_ENCRYPT ? NIMBLE_PROPERTY::READ_ENC : 0;
   NimBLECharacteristic* rx = service->createCharacteristic(
-    kRxUuid, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC);
+    kRxUuid, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | kWriteEnc);
   g_tx = service->createCharacteristic(kTxUuid, NIMBLE_PROPERTY::NOTIFY);
-  g_live = service->createCharacteristic(
-    kLiveUuid, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::NOTIFY);
+  g_live = service->createCharacteristic(kLiveUuid, NIMBLE_PROPERTY::READ | kReadEnc | NIMBLE_PROPERTY::NOTIFY);
   if (!rx || !g_tx || !g_live) {
     LOG_ERROR("bleapi", "Unable to create API characteristics");
     return false;
