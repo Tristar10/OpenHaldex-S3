@@ -14,7 +14,7 @@ struct ModesView: View {
                     NavigationLink("Map editor") { MapEditor() }
                 }
                 Section("All modes") {
-                    NavigationLink("Gates & release ramp") { GateSettings(modeKey: nil) }
+                    NavigationLink("Gates & release ramp") { Form { GateSettings(modeKey: nil) }.navigationTitle("Gates") }
                 }
             }
             .navigationTitle("Modes")
@@ -78,7 +78,7 @@ struct CurveEditor: View {
                 Button("Reload from controller") { Task { await load() } }
                 Button("Use \(kind.title) mode now") { model.setMode(kind.rawValue.uppercased()) }
             }
-            GateSettings(modeKey: kind.rawValue).embedded
+            GateSettings(modeKey: kind.rawValue)
         }
         .navigationTitle(kind.title)
         .overlay { if loading { ProgressView() } }
@@ -115,14 +115,9 @@ struct GateSettings: View {
     @State private var release = 0.0
     @State private var loaded = false
 
+    // A Section, so it can sit inside the curve/map Forms. It must be used as a
+    // real child view (not via a property) so its EnvironmentObject resolves.
     var body: some View {
-        Form { content }.navigationTitle("Gates")
-    }
-
-    /// For embedding inside another Form.
-    var embedded: some View { content }
-
-    @ViewBuilder private var content: some View {
         Section {
             if let modeKey {
                 Stepper("Disengage under \(disengage) km/h", value: $disengage, in: 0...300, step: 5)
@@ -214,7 +209,7 @@ struct MapEditor: View {
                     Button("Save") { saveAs() }.disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            GateSettings(modeKey: "map").embedded
+            GateSettings(modeKey: "map")
         }
         .navigationTitle("Map")
         .overlay { if loading { ProgressView() } }
