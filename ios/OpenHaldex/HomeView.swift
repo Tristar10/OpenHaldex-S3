@@ -66,11 +66,12 @@ struct HomeView: View {
     private var ratioCard: some View {
         let rear = Self.lockModes[effective].map(Double.init) ?? rearBias
         return VStack(spacing: 10) {
-            if mode == "STOCK" {
-                // Off: the stock Haldex controller is in charge, so a ratio
-                // and slider would be misleading.
-                Text("OFF").font(.system(size: 44, weight: .bold, design: .rounded))
-                Text("Stock Haldex control").font(.caption).foregroundStyle(.secondary)
+            if Self.lockModes[mode] == nil {
+                // Only Lock has a fixed ratio; Off and the curve/map modes would
+                // make a ratio + slider misleading. Tap Lock to get the slider.
+                Text(mode == "STOCK" ? "OFF" : modeLabel(mode).uppercased())
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                Text(modeCaption).font(.caption).foregroundStyle(.secondary)
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 18) {
                     ratioNumber(Int(100 - rear), "FRONT")
@@ -90,6 +91,15 @@ struct HomeView: View {
             }
         }
         .card()
+    }
+
+    private var modeCaption: String {
+        switch mode {
+        case "STOCK": return "Stock Haldex control"
+        case "MAP": return "Lock follows the throttle × speed map"
+        case "SPEED", "THROTTLE", "RPM": return "Lock follows the \(modeLabel(mode).lowercased()) curve"
+        default: return ""
+        }
     }
 
     private var flagsRow: some View {
