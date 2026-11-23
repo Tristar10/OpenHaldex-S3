@@ -3,12 +3,26 @@ import SwiftUI
 /// Mirrors the web UI home page: mode buttons, lock ratio, status flags.
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
+    @EnvironmentObject var api: BLEApi
     @State private var rearBias: Double = 50
     @State private var editingBias = false
 
     private var s: JSON { model.status }
-    private var mode: String { s["mode"].stringValue }
-    private var effective: String { s["effectiveMode"].stringValue }
+    // Prefer the 5 Hz live channel; fall back to the last /api/status.
+    private var live: LiveStatus? { api.live }
+    private var mode: String { live?.mode ?? s["mode"].stringValue }
+    private var effective: String { live?.effectiveMode ?? s["effectiveMode"].stringValue }
+    private var lockTarget: Int { live?.lockTarget ?? s["telemetry"]["spec"].intValue }
+    private var lockActual: Int { live?.lockActual ?? s["telemetry"]["act"].intValue }
+    private var tempProtection: Bool { live?.tempProtection ?? s["telemetry"]["tempProtection"].boolValue }
+    private var canOk: Bool {
+        live.map { $0.canReady && !$0.busFailure } ?? (s["can"]["ready"].boolValue && !s["can"]["busFailure"].boolValue)
+    }
+    private var tempText: String {
+        if let live { return live.clutchTempValid ? "\(live.clutchTempC) °C" : "—" }
+        return s["experimental"]["haldexClutchTempValid"].boolValue ? "\(s["experimental"]["haldexClutchTempC"].intValue) °C" : "—"
+    }
+    private var captureActive: Bool { live?.captureActive ?? s["canviewCaptureMode"].boolValue }
 
     private static let lockModes = ["5050": 50, "6040": 40, "7030": 30, "8020": 20, "9010": 10, "FWD": 0]
 
@@ -30,7 +44,7 @@ struct HomeView: View {
                     ratioCard
                     flagsRow
                     haldexCard
-                    if s["canviewCaptureMode"].boolValue {
+                    if captureActive {
                         Label("CAN View capture is active — controller held in safe state", systemImage: "exclamationmark.triangle")
                             .font(.footnote).foregroundStyle(.yellow)
                     }
@@ -70,10 +84,9 @@ struct HomeView: View {
 
     private var flagsRow: some View {
         HStack(spacing: 10) {
-            flag("TMP", on: s["telemetry"]["tempProtection"].boolValue, onColor: .red)
-            flag("CAN", on: s["can"]["ready"].boolValue && !s["can"]["busFailure"].boolValue, onColor: .green,
-                 offColor: .red)
-            flag("AWD", on: s["telemetry"]["act"].intValue > 0, onColor: .orange)
+            flag("TMP", on: tempProtection, onColor: .red)
+            flag("CAN", on: canOk, onColor: .green, offColor: .red)
+            flag("AWD", on: lockActual > 0, onColor: .orange)
         }
     }
 
@@ -81,11 +94,10 @@ struct HomeView: View {
         VStack(spacing: 8) {
             ValueRow("Mode", modeLabel(mode))
             ValueRow("Setting", settingText)
-            ValueRow("Lock target", "\(s["telemetry"]["spec"].intValue)%")
-            ValueRow("Lock actual", "\(s["telemetry"]["act"].intValue)%")
-            ValueRow("Haldex temp", s["experimental"]["haldexClutchTempValid"].boolValue
-                     ? "\(s["experimental"]["haldexClutchTempC"].intValue) °C" : "—")
-            ValueRow("Coupling open", s["telemetry"]["couplingOpen"].boolValue ? "yes" : "no")
+            ValueRow("Lock target", "\(lockTarget)%")
+            ValueRow("Lock actual", "\(lockActual)%")
+            ValueRow("Haldex temp", tempText)
+            ValueRow("Coupling open", (live?.couplingOpen ?? s["telemetry"]["couplingOpen"].boolValue) ? "yes" : "no")
         }
         .card()
     }

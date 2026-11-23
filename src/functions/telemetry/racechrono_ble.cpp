@@ -246,6 +246,11 @@ class ServerCallbacks final : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* server, NimBLEConnInfo& conn_info) override {
     LOG_INFO("racechrono", "BLE central connected handle=%u peers=%u", (unsigned)conn_info.getConnHandle(),
              (unsigned)server->getConnectedCount());
+    // 251-byte link-layer packets and a 15 ms interval (the fastest iOS
+    // accepts; Android RaceChrono also honours it). Both are requests - the
+    // phone may pick something slower.
+    server->setDataLen(conn_info.getConnHandle(), 251);
+    server->updateConnParams(conn_info.getConnHandle(), 12, 12, 0, 400);
     // Keep advertising so a second central (RaceChrono + the app) can join.
     NimBLEDevice::startAdvertising();
   }
@@ -330,8 +335,15 @@ bool initializeBleServer() {
     LOG_ERROR("racechrono", "NimBLE initialization failed");
     return false;
   }
-  // Large MTU lets API responses stream in ~500-byte notifications.
+  // Throughput: large MTU, 2M PHY preferred (falls back to 1M on older
+  // phones). Data length extension is requested per connection in onConnect.
   NimBLEDevice::setMTU(517);
+  NimBLEDevice::setDefaultPhy(BLE_GAP_LE_PHY_2M_MASK | BLE_GAP_LE_PHY_1M_MASK,
+                              BLE_GAP_LE_PHY_2M_MASK | BLE_GAP_LE_PHY_1M_MASK);
+  // Bond with "Just Works" (no PIN). Only the app's API characteristics require
+  // encryption; RaceChrono's DIY service stays open as its protocol expects.
+  NimBLEDevice::setSecurityAuth(true, false, true);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
 
   setBleBootPhase(BleBootPhase::CreatingServer, "Creating BLE server");
   NimBLEServer* server = NimBLEDevice::createServer();
@@ -380,7 +392,7 @@ bool initializeBleServer() {
   }
 
   setBleBootPhase(BleBootPhase::StartingTelemetryTask, "Starting telemetry task");
-  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 3072, nullptr, 1, nullptr, OH_APP_TASK_CORE) != pdPASS) {
+  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 3072, nullptr, 2, nullptr, OH_APP_TASK_CORE) != pdPASS) {
     LOG_ERROR("racechrono", "Unable to start BLE telemetry task");
     return false;
   }

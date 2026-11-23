@@ -2720,6 +2720,8 @@ class BufferApiReq final : public ApiReq {
   ApiResponse& out_;
 };
 
+bool apiCanviewCaptureActive() { return canview_capture_active; }
+
 bool apiDispatch(const String& method, const String& path, const String& query, const String& body,
                  ApiResponse& out) {
   ensureDefaults();

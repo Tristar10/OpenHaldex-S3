@@ -5,6 +5,8 @@
 
 #include "functions/api/api.h"
 #include "functions/config/config.h"
+#include "functions/core/state.h"
+#include "nimble/porting/nimble/include/os/os_mbuf.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -15,6 +17,11 @@ namespace {
 constexpr char kServiceUuid[] = "4f480001-0000-4c44-8000-4f70656e4844";
 constexpr char kRxUuid[] = "4f480002-0000-4c44-8000-4f70656e4844";
 constexpr char kTxUuid[] = "4f480003-0000-4c44-8000-4f70656e4844";
+constexpr char kLiveUuid[] = "4f480004-0000-4c44-8000-4f70656e4844";
+constexpr uint32_t kLiveIntervalMs = 200;  // 5 Hz compact status for the app.
+// Keep this many host buffers free for RaceChrono telemetry; API responses
+// wait instead of eating into them.
+constexpr int kMbufReserve = 6;
 
 constexpr uint8_t kFlagFirst = 0x01;
 constexpr uint8_t kFlagLast = 0x02;
@@ -29,6 +36,7 @@ struct PendingRequest {
 
 QueueHandle_t g_request_queue = nullptr;
 NimBLECharacteristic* g_tx = nullptr;
+NimBLECharacteristic* g_live = nullptr;
 NimBLEServer* g_server = nullptr;
 
 // Reassembly state. Only touched from the NimBLE host task (onWrite and the
@@ -80,6 +88,22 @@ class RxCallbacks final : public NimBLECharacteristicCallbacks {
 
 RxCallbacks g_rx_callbacks;
 
+volatile int g_live_subscribers = 0;
+
+class LiveCallbacks final : public NimBLECharacteristicCallbacks {
+  void onSubscribe(NimBLECharacteristic* characteristic, NimBLEConnInfo& conn_info, uint16_t sub_value) override {
+    (void)characteristic;
+    (void)conn_info;
+    if (sub_value) {
+      g_live_subscribers++;
+    } else if (g_live_subscribers > 0) {
+      g_live_subscribers--;
+    }
+  }
+};
+
+LiveCallbacks g_live_callbacks;
+
 bool connectionAlive(uint16_t conn) {
   return g_server && g_server->getPeerInfoByHandle(conn).getConnHandle() == conn;
 }
@@ -117,7 +141,7 @@ void sendResponse(uint16_t conn, const String& header, const String& body) {
     // notify() fails when the host is out of buffers; back off and retry so a
     // long response (CAN View, logs) streams at whatever rate the link allows.
     int tries = 0;
-    while (!g_tx->notify(packet, n + 1, conn)) {
+    while (os_msys_num_free() < kMbufReserve || !g_tx->notify(packet, n + 1, conn)) {
       if (++tries >= kNotifyRetries || !connectionAlive(conn)) {
         LOG_WARN("bleapi", "Response aborted after %u/%u bytes", (unsigned)offset, (unsigned)total);
         return;
@@ -150,11 +174,62 @@ void handleMessage(uint16_t conn, const String& message) {
   sendResponse(conn, id + " " + String(response.code) + " " + response.type, response.body);
 }
 
+uint16_t ageMs(long tick) {
+  if (tick <= 0) return 0xFFFF;
+  const unsigned long age = millis() - (unsigned long)tick;
+  return age > 0xFFFE ? 0xFFFE : (uint16_t)age;
+}
+
+// Compact live status (v1, little-endian), so the app doesn't have to poll the
+// multi-kilobyte /api/status JSON just to keep the home screen current.
+//  0 version (1)          1 mode           2 effective mode
+//  3 lock target %        4 lock actual %  5 flags A
+//  6-7 Haldex clutch temp C (int16)        8 Haldex generation
+//  9 learn progress %     10-11 chassis frame age ms   12-13 Haldex frame age ms
+//  14 flags B
+// flags A: 0 CAN ready, 1 bus failure, 2 temp protection, 3 coupling open,
+//          4 controller disabled, 5 CAN View capture, 6 clutch temp valid, 7 learning
+// flags B: 0 chassis bus seen, 1 Haldex bus seen, 2 reverse
+void sendLive() {
+  if (!g_live || g_live_subscribers == 0 || os_msys_num_free() < kMbufReserve) {
+    return;
+  }
+  uint8_t p[15] = {};
+  p[0] = 1;
+  p[1] = (uint8_t)state.mode;
+  p[2] = (uint8_t)openhaldexEffectiveMode();
+  p[3] = (uint8_t)constrain((int)lroundf(lock_target), 0, 100);
+  p[4] = (uint8_t)constrain((int)received_haldex_engagement, 0, 100);
+  p[5] = (can_ready ? 0x01 : 0) | (isBusFailure ? 0x02 : 0) | (received_temp_protection ? 0x04 : 0) |
+         (received_coupling_open ? 0x08 : 0) | (disableController ? 0x10 : 0) |
+         (apiCanviewCaptureActive() ? 0x20 : 0) | (received_haldex_clutch_temp_valid ? 0x40 : 0) |
+         (haldexLearnActive ? 0x80 : 0);
+  const int16_t temp = received_haldex_clutch_temp_c;
+  p[6] = (uint8_t)temp;
+  p[7] = (uint8_t)(temp >> 8);
+  p[8] = haldexGeneration;
+  p[9] = haldexLearnStep;
+  const uint16_t chs = ageMs(lastCANChassisTick);
+  const uint16_t hdx = ageMs(lastCANHaldexTick);
+  p[10] = (uint8_t)chs;
+  p[11] = (uint8_t)(chs >> 8);
+  p[12] = (uint8_t)hdx;
+  p[13] = (uint8_t)(hdx >> 8);
+  p[14] = (hasCANChassis ? 0x01 : 0) | (hasCANHaldex ? 0x02 : 0) | (received_reverse_active ? 0x04 : 0);
+  g_live->notify(p, sizeof(p));
+}
+
 void apiTask(void* arg) {
   (void)arg;
   PendingRequest req = {};
+  uint32_t last_live_ms = 0;
   for (;;) {
-    if (xQueueReceive(g_request_queue, &req, portMAX_DELAY) != pdTRUE) {
+    const uint32_t now = millis();
+    if (now - last_live_ms >= kLiveIntervalMs) {
+      last_live_ms = now;
+      sendLive();
+    }
+    if (xQueueReceive(g_request_queue, &req, pdMS_TO_TICKS(kLiveIntervalMs / 2)) != pdTRUE) {
       continue;
     }
     if (connectionAlive(req.conn_handle)) {
@@ -182,14 +257,20 @@ bool bleApiAttach(NimBLEServer* server) {
     LOG_ERROR("bleapi", "Unable to create API service");
     return false;
   }
-  NimBLECharacteristic* rx =
-    service->createCharacteristic(kRxUuid, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+  // Writes require an encrypted (bonded) link: iOS pairs automatically with
+  // "Just Works" on the first write. Reading LIVE also triggers pairing, so the
+  // app reads it once right after connecting.
+  NimBLECharacteristic* rx = service->createCharacteristic(
+    kRxUuid, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC);
   g_tx = service->createCharacteristic(kTxUuid, NIMBLE_PROPERTY::NOTIFY);
-  if (!rx || !g_tx) {
+  g_live = service->createCharacteristic(
+    kLiveUuid, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::NOTIFY);
+  if (!rx || !g_tx || !g_live) {
     LOG_ERROR("bleapi", "Unable to create API characteristics");
     return false;
   }
   rx->setCallbacks(&g_rx_callbacks);
+  g_live->setCallbacks(&g_live_callbacks);
 
   if (xTaskCreatePinnedToCore(apiTask, "bleApi", kTaskStackBytes, nullptr, 1, nullptr, OH_APP_TASK_CORE) != pdPASS) {
     LOG_ERROR("bleapi", "Unable to start API task");

@@ -17,6 +17,8 @@ struct ApiResponse {
 bool apiDispatch(const String& method, const String& path, const String& query, const String& body,
                  ApiResponse& out);
 
+bool apiCanviewCaptureActive();
+
 #if OH_ENABLE_WEB
 #include <ESPAsyncWebServer.h>
 void setupApi(AsyncWebServer& server);

@@ -1,8 +1,9 @@
 import Foundation
 import SwiftUI
 
-/// Shared state: the link plus the latest `/api/status`, polled once a second
-/// while connected (the web UI's home page does the same).
+/// Shared state: the link plus the latest `/api/status`. The home screen runs
+/// off the 5 Hz BLE live channel, so the full multi-kilobyte status JSON is only
+/// polled every 5 s (and refreshed right after every change / pull-to-refresh).
 @MainActor
 final class AppModel: ObservableObject {
     let api = BLEApi()
@@ -15,7 +16,7 @@ final class AppModel: ObservableObject {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refreshStatus()
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
     }

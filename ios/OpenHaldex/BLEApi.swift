@@ -20,9 +20,12 @@ final class BLEApi: NSObject, ObservableObject {
     nonisolated static let apiService = CBUUID(string: "4f480001-0000-4c44-8000-4f70656e4844")
     nonisolated static let rxChar = CBUUID(string: "4f480002-0000-4c44-8000-4f70656e4844")
     nonisolated static let txChar = CBUUID(string: "4f480003-0000-4c44-8000-4f70656e4844")
+    nonisolated static let liveChar = CBUUID(string: "4f480004-0000-4c44-8000-4f70656e4844")
 
     @Published private(set) var state: LinkState = .bluetoothOff
     @Published private(set) var deviceName: String = ""
+    /// Compact 5 Hz status pushed by the controller (see LiveStatus).
+    @Published private(set) var live: LiveStatus?
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
@@ -212,6 +215,7 @@ extension BLEApi: CBCentralManagerDelegate {
         Task { @MainActor in
             self.peripheral = nil
             self.rx = nil
+            self.live = nil
             self.failAll("Disconnected")
             self.startScan()
         }
@@ -224,7 +228,7 @@ extension BLEApi: CBPeripheralDelegate {
             Task { @MainActor in self.state = .connecting }  // Old firmware without the API service.
             return
         }
-        peripheral.discoverCharacteristics([BLEApi.rxChar, BLEApi.txChar], for: s)
+        peripheral.discoverCharacteristics([BLEApi.rxChar, BLEApi.txChar, BLEApi.liveChar], for: s)
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService,
@@ -234,6 +238,12 @@ extension BLEApi: CBPeripheralDelegate {
             for c in chars {
                 if c.uuid == Self.rxChar { self.rx = c }
                 if c.uuid == Self.txChar { peripheral.setNotifyValue(true, for: c) }
+                if c.uuid == Self.liveChar {
+                    // Reading an encrypted characteristic makes iOS pair
+                    // ("Just Works") up front instead of on the first command.
+                    peripheral.readValue(for: c)
+                    peripheral.setNotifyValue(true, for: c)
+                }
             }
         }
     }
@@ -249,7 +259,65 @@ extension BLEApi: CBPeripheralDelegate {
 
     nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic,
                                 error: Error?) {
-        guard characteristic.uuid == BLEApi.txChar, let data = characteristic.value else { return }
-        Task { @MainActor in self.handleFragment(data) }
+        guard let data = characteristic.value else { return }
+        if characteristic.uuid == BLEApi.liveChar {
+            let status = LiveStatus(data)
+            Task { @MainActor in self.live = status }
+        } else if characteristic.uuid == BLEApi.txChar {
+            Task { @MainActor in self.handleFragment(data) }
+        }
+    }
+}
+
+/// Decodes the controller's 15-byte live status (firmware ble_api.cpp sendLive).
+struct LiveStatus: Equatable {
+    /// Firmware `openhaldex_mode_t` order.
+    static let modeNames = ["STOCK", "FWD", "5050", "6040", "7030", "8020", "9010", "SPEED", "THROTTLE", "MAP", "RPM"]
+
+    var mode = "STOCK"
+    var effectiveMode = "STOCK"
+    var lockTarget = 0
+    var lockActual = 0
+    var canReady = false
+    var busFailure = false
+    var tempProtection = false
+    var couplingOpen = false
+    var controllerDisabled = false
+    var captureActive = false
+    var clutchTempValid = false
+    var learning = false
+    var clutchTempC = 0
+    var generation = 0
+    var learnProgress = 0
+    var chassisAgeMs = 0
+    var haldexAgeMs = 0
+    var chassisSeen = false
+    var haldexSeen = false
+    var reverse = false
+
+    init?(_ d: Data) {
+        let b = [UInt8](d)
+        guard b.count >= 15, b[0] == 1 else { return nil }
+        func name(_ i: UInt8) -> String { Int(i) < Self.modeNames.count ? Self.modeNames[Int(i)] : "STOCK" }
+        mode = name(b[1])
+        effectiveMode = name(b[2])
+        lockTarget = Int(b[3])
+        lockActual = Int(b[4])
+        canReady = b[5] & 0x01 != 0
+        busFailure = b[5] & 0x02 != 0
+        tempProtection = b[5] & 0x04 != 0
+        couplingOpen = b[5] & 0x08 != 0
+        controllerDisabled = b[5] & 0x10 != 0
+        captureActive = b[5] & 0x20 != 0
+        clutchTempValid = b[5] & 0x40 != 0
+        learning = b[5] & 0x80 != 0
+        clutchTempC = Int(Int16(bitPattern: UInt16(b[6]) | UInt16(b[7]) << 8))
+        generation = Int(b[8])
+        learnProgress = Int(b[9])
+        chassisAgeMs = Int(UInt16(b[10]) | UInt16(b[11]) << 8)
+        haldexAgeMs = Int(UInt16(b[12]) | UInt16(b[13]) << 8)
+        chassisSeen = b[14] & 0x01 != 0
+        haldexSeen = b[14] & 0x02 != 0
+        reverse = b[14] & 0x04 != 0
     }
 }
