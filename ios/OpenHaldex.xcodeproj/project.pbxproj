@@ -7,26 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1812B8CB98DD86F3A02FCE0C /* HaldexLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 085E8100BF230B121DAA0C82 /* HaldexLink.swift */; };
-		1FBBE364387750D547CCC2CB /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162BA6373FAE4903F60581E1 /* DashboardView.swift */; };
-		2E55754B00D2291422A4B21F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AD9EAF06E61407A1757D1A /* SettingsView.swift */; };
+		120E1CA7BD6304CB9E534C2C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD010A96C7656A60BEF67A73 /* HomeView.swift */; };
+		5558A0EF921E531EE87733B0 /* ModesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1E309CE8A49ED7D4F6747 /* ModesView.swift */; };
+		5A4059C281ED770002C14D5D /* gen5-mwb.json in Resources */ = {isa = PBXBuildFile; fileRef = 593E0DBFDD24BD8213FAC4A1 /* gen5-mwb.json */; };
 		65CF11DD287AB7A86A9EA2F4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */; };
-		97754078369DB698D5BE4624 /* Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD5CF7D84F973903B007246 /* Telemetry.swift */; };
+		67EBBAB333255824A6968745 /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D37456D4B1D5321E4046A59 /* MoreView.swift */; };
+		92A2B165B1327C31D42A33C4 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99BA09E828C74B2F4057CE2D /* JSON.swift */; };
+		95812805EFC4E86084F663CF /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625A3939934C07E954935687 /* SetupView.swift */; };
+		AE0FF10258403E322FA5644A /* BLEApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70FB61DA7D97D19C279D9CFE /* BLEApi.swift */; };
+		BDA26310D9B77358EA0CF391 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB99B7A530E9B30895548B4 /* AppModel.swift */; };
 		E689BE582F011E9B7394DE06 /* OpenHaldexApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */; };
-		EA3CCAF2E1A82ACCC87C0064 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8DCA4D22F6B288E6ED7344 /* AppSettings.swift */; };
 		EB0FEB0D8855671826719E04 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB5044CF7C391466E17B684 /* RootView.swift */; };
+		F90AFA0F918F458DB7D25D03 /* DiagView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B6F2EDE9C2E23DDBE3B35D /* DiagView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		085E8100BF230B121DAA0C82 /* HaldexLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaldexLink.swift; sourceTree = "<group>"; };
-		162BA6373FAE4903F60581E1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		1D37456D4B1D5321E4046A59 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		1EB5044CF7C391466E17B684 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		37D1E309CE8A49ED7D4F6747 /* ModesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModesView.swift; sourceTree = "<group>"; };
+		593E0DBFDD24BD8213FAC4A1 /* gen5-mwb.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "gen5-mwb.json"; sourceTree = "<group>"; };
 		5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		7E8DCA4D22F6B288E6ED7344 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		80AD9EAF06E61407A1757D1A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		625A3939934C07E954935687 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		70FB61DA7D97D19C279D9CFE /* BLEApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEApi.swift; sourceTree = "<group>"; };
+		99BA09E828C74B2F4057CE2D /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
+		BD010A96C7656A60BEF67A73 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		CEB99B7A530E9B30895548B4 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D0B6F2EDE9C2E23DDBE3B35D /* DiagView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagView.swift; sourceTree = "<group>"; };
 		D1D65DD3B99C3DBED619DC3D /* OpenHaldex.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenHaldex.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHaldexApp.swift; sourceTree = "<group>"; };
-		FCD5CF7D84F973903B007246 /* Telemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Telemetry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -41,14 +49,18 @@
 		9FEC0C84B930ADBA5551284E /* OpenHaldex */ = {
 			isa = PBXGroup;
 			children = (
-				7E8DCA4D22F6B288E6ED7344 /* AppSettings.swift */,
+				CEB99B7A530E9B30895548B4 /* AppModel.swift */,
 				5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */,
-				162BA6373FAE4903F60581E1 /* DashboardView.swift */,
-				085E8100BF230B121DAA0C82 /* HaldexLink.swift */,
+				70FB61DA7D97D19C279D9CFE /* BLEApi.swift */,
+				D0B6F2EDE9C2E23DDBE3B35D /* DiagView.swift */,
+				593E0DBFDD24BD8213FAC4A1 /* gen5-mwb.json */,
+				BD010A96C7656A60BEF67A73 /* HomeView.swift */,
+				99BA09E828C74B2F4057CE2D /* JSON.swift */,
+				37D1E309CE8A49ED7D4F6747 /* ModesView.swift */,
+				1D37456D4B1D5321E4046A59 /* MoreView.swift */,
 				E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */,
 				1EB5044CF7C391466E17B684 /* RootView.swift */,
-				80AD9EAF06E61407A1757D1A /* SettingsView.swift */,
-				FCD5CF7D84F973903B007246 /* Telemetry.swift */,
+				625A3939934C07E954935687 /* SetupView.swift */,
 			);
 			path = OpenHaldex;
 			sourceTree = "<group>";
@@ -122,6 +134,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				65CF11DD287AB7A86A9EA2F4 /* Assets.xcassets in Resources */,
+				5A4059C281ED770002C14D5D /* gen5-mwb.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,13 +145,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EA3CCAF2E1A82ACCC87C0064 /* AppSettings.swift in Sources */,
-				1FBBE364387750D547CCC2CB /* DashboardView.swift in Sources */,
-				1812B8CB98DD86F3A02FCE0C /* HaldexLink.swift in Sources */,
+				BDA26310D9B77358EA0CF391 /* AppModel.swift in Sources */,
+				AE0FF10258403E322FA5644A /* BLEApi.swift in Sources */,
+				F90AFA0F918F458DB7D25D03 /* DiagView.swift in Sources */,
+				120E1CA7BD6304CB9E534C2C /* HomeView.swift in Sources */,
+				92A2B165B1327C31D42A33C4 /* JSON.swift in Sources */,
+				5558A0EF921E531EE87733B0 /* ModesView.swift in Sources */,
+				67EBBAB333255824A6968745 /* MoreView.swift in Sources */,
 				E689BE582F011E9B7394DE06 /* OpenHaldexApp.swift in Sources */,
 				EB0FEB0D8855671826719E04 /* RootView.swift in Sources */,
-				2E55754B00D2291422A4B21F /* SettingsView.swift in Sources */,
-				97754078369DB698D5BE4624 /* Telemetry.swift in Sources */,
+				95812805EFC4E86084F663CF /* SetupView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

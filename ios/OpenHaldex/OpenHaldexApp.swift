@@ -2,14 +2,13 @@ import SwiftUI
 
 @main
 struct OpenHaldexApp: App {
-    @StateObject private var link = HaldexLink()
-    @StateObject private var settings = AppSettings()
+    @StateObject private var model = AppModel()
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(link)
-                .environmentObject(settings)
+                .environmentObject(model)
+                .environmentObject(model.api)
                 .preferredColorScheme(.dark)
         }
     }
