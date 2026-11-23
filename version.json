@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.7",
-  "notes": "OpenHaldex-S3 v1.1.7 (one-board-ble): presets (catalog, atomic apply, app + MMI TTP1/TTC1/TTR1, channel 22); atomic map table",
+  "version": "v1.1.8",
+  "notes": "OpenHaldex-S3 v1.1.8 (one-board-ble): wheel speeds fixed (were 0 when a speed input was mapped); RaceChrono PID 0xFFFF0003 wheel speeds; stack diagnostics; app RaceChrono setup page",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

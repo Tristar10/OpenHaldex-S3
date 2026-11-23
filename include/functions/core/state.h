@@ -101,6 +101,8 @@ extern uint8_t haldexGeneration;
 
 // Gen 5 (MQB) per-corner wheel speed, km/h. Populated alongside the averaged
 // received_vehicle_speed; zero until the first ESP_19 frame is seen.
+// Wheel speeds in 0.01 km/h (FL, FR, RL, RR), full resolution for telemetry.
+extern uint16_t received_wheel_speed_centi[4];
 extern uint16_t received_wheel_speed_fl;
 extern uint16_t received_wheel_speed_fr;
 extern uint16_t received_wheel_speed_rl;

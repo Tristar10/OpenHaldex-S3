@@ -424,6 +424,20 @@ static void memDiagTick() {
                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                 (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+  // Every 30 s: unused stack (bytes) of the tasks added for BLE/app/MMI work.
+  static uint32_t last_stack_ms = 0;
+  if (millis() - last_stack_ms >= 30000) {
+    last_stack_ms = millis();
+    static const char* const kTasks[] = {"bleApi", "racechronoBle", "writeEEP", "wifiStaMaintain"};
+    for (const char* name : kTasks) {
+      TaskHandle_t h = xTaskGetHandle(name);
+      if (h) {
+        Serial.printf("[STACK] %-16s unused_min=%u bytes\n", name, (unsigned)uxTaskGetStackHighWaterMark(h));
+      }
+    }
+    Serial.printf("[STACK] %-16s unused_min=%u bytes\n", "loopTask", (unsigned)uxTaskGetStackHighWaterMark(nullptr));
+  }
 }
 #endif
 

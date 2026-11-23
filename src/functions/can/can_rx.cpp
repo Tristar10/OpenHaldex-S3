@@ -478,7 +478,11 @@ void parseCAN_chs(void* arg) {
           break;
 
         case ESP_19:
-          if (haldexGeneration == 5 && !speed_mapped_recent) {
+          // Wheel speeds are always decoded. Only the vehicle-speed override
+          // below yields to a mapped speed input: previously the whole case was
+          // skipped when speed was mapped (the Gen 5 default), which left all
+          // four wheel speeds stuck at 0 in telemetry.
+          if (haldexGeneration == 5) {
             const uint16_t wheel_speed_hl_raw = (uint16_t)((rx_msg_chs().data[1] << 8) | rx_msg_chs().data[0]);
             const uint16_t wheel_speed_hr_raw = (uint16_t)((rx_msg_chs().data[3] << 8) | rx_msg_chs().data[2]);
             const uint16_t wheel_speed_vl_raw = (uint16_t)((rx_msg_chs().data[5] << 8) | rx_msg_chs().data[4]);
@@ -491,11 +495,18 @@ void parseCAN_chs(void* arg) {
             received_wheel_speed_fr = (uint16_t)(wheel_speed_vr_raw * 0.0075f + 0.5f);
             received_wheel_speed_rl = (uint16_t)(wheel_speed_hl_raw * 0.0075f + 0.5f);
             received_wheel_speed_rr = (uint16_t)(wheel_speed_hr_raw * 0.0075f + 0.5f);
+            // 0.0075 km/h per bit = 0.75 centi-km/h per bit.
+            received_wheel_speed_centi[0] = (uint16_t)min(65535UL, (wheel_speed_vl_raw * 3UL + 2) / 4);
+            received_wheel_speed_centi[1] = (uint16_t)min(65535UL, (wheel_speed_vr_raw * 3UL + 2) / 4);
+            received_wheel_speed_centi[2] = (uint16_t)min(65535UL, (wheel_speed_hl_raw * 3UL + 2) / 4);
+            received_wheel_speed_centi[3] = (uint16_t)min(65535UL, (wheel_speed_hr_raw * 3UL + 2) / 4);
 
-            received_vehicle_speed = (uint16_t)(average_wheel_speed + 0.5f);
-            vehicle_state.speed = received_vehicle_speed;
-            last_abs_speed_ms = millis();
-            abs_speed_valid = true;
+            if (!speed_mapped_recent) {
+              received_vehicle_speed = (uint16_t)(average_wheel_speed + 0.5f);
+              vehicle_state.speed = received_vehicle_speed;
+              last_abs_speed_ms = millis();
+              abs_speed_valid = true;
+            }
           }
           break;
 

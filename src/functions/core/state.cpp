@@ -36,6 +36,7 @@ uint16_t received_vehicle_rpm = 0;
 uint16_t received_vehicle_boost = 0;
 uint8_t haldexGeneration = 0;
 
+uint16_t received_wheel_speed_centi[4] = {0, 0, 0, 0};
 uint16_t received_wheel_speed_fl = 0;
 uint16_t received_wheel_speed_fr = 0;
 uint16_t received_wheel_speed_rl = 0;

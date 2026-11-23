@@ -10,6 +10,7 @@ struct MoreView: View {
                 NavigationLink("CAN View") { CanView() }
                 NavigationLink("Logs") { LogsView() }
                 NavigationLink("Wi-Fi (MMI hotspot)") { WifiView() }
+                NavigationLink("RaceChrono setup") { RaceChronoSetupView() }
                 Section("Connection") {
                     HStack { Text("Controller"); Spacer(); ConnectionBadge() }
                     Button("Reconnect") { api.reconnect() }

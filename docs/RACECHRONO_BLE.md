@@ -62,6 +62,20 @@ sign is already corrected):
 | EDS active | 0/1 | `bitsToUint(raw, 58, 1)` |
 | Reverse | 0/1 | `bitsToUint(raw, 59, 1)` |
 
+## Wheel speeds
+
+PID `0xFFFF0003`, all in km/h:
+
+| Channel | RaceChrono equation |
+| --- | --- |
+| Wheel speed FL | `bytesToUint(raw, 0, 2) / 100.0` |
+| Wheel speed FR | `bytesToUint(raw, 2, 2) / 100.0` |
+| Wheel speed RL | `bytesToUint(raw, 4, 2) / 100.0` |
+| Wheel speed RR | `bytesToUint(raw, 6, 2) / 100.0` |
+
+(Before v1.1.8 the controller stopped decoding wheel speeds whenever a speed
+input was mapped in Setup, which the Gen 5 defaults do, so they read 0.)
+
 The iPhone app can stay connected at the same time; it uses its own service
 and never changes RaceChrono's channel selection.
 

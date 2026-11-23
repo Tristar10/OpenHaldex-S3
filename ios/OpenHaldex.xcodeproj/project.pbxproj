@@ -17,6 +17,7 @@
 		95812805EFC4E86084F663CF /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625A3939934C07E954935687 /* SetupView.swift */; };
 		AE0FF10258403E322FA5644A /* BLEApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70FB61DA7D97D19C279D9CFE /* BLEApi.swift */; };
 		BDA26310D9B77358EA0CF391 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB99B7A530E9B30895548B4 /* AppModel.swift */; };
+		DF0D667EFFF3A293811E5C23 /* RaceChronoSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD57F073C4B5F2230629F2 /* RaceChronoSetupView.swift */; };
 		E3C6941A436850A05F25BD52 /* PresetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746509327C772A8FAE43C223 /* PresetsView.swift */; };
 		E689BE582F011E9B7394DE06 /* OpenHaldexApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */; };
 		EB0FEB0D8855671826719E04 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB5044CF7C391466E17B684 /* RootView.swift */; };
@@ -33,6 +34,7 @@
 		625A3939934C07E954935687 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		70FB61DA7D97D19C279D9CFE /* BLEApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEApi.swift; sourceTree = "<group>"; };
 		746509327C772A8FAE43C223 /* PresetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetsView.swift; sourceTree = "<group>"; };
+		92DD57F073C4B5F2230629F2 /* RaceChronoSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceChronoSetupView.swift; sourceTree = "<group>"; };
 		99BA09E828C74B2F4057CE2D /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
 		BD010A96C7656A60BEF67A73 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		CEB99B7A530E9B30895548B4 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 				1D37456D4B1D5321E4046A59 /* MoreView.swift */,
 				E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */,
 				746509327C772A8FAE43C223 /* PresetsView.swift */,
+				92DD57F073C4B5F2230629F2 /* RaceChronoSetupView.swift */,
 				1EB5044CF7C391466E17B684 /* RootView.swift */,
 				625A3939934C07E954935687 /* SetupView.swift */,
 			);
@@ -161,6 +164,7 @@
 				67EBBAB333255824A6968745 /* MoreView.swift in Sources */,
 				E689BE582F011E9B7394DE06 /* OpenHaldexApp.swift in Sources */,
 				E3C6941A436850A05F25BD52 /* PresetsView.swift in Sources */,
+				DF0D667EFFF3A293811E5C23 /* RaceChronoSetupView.swift in Sources */,
 				EB0FEB0D8855671826719E04 /* RootView.swift in Sources */,
 				95812805EFC4E86084F663CF /* SetupView.swift in Sources */,
 			);

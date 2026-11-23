@@ -22,6 +22,7 @@ constexpr uint32_t kOpenHaldexTelemetryPid = 0xFFFF0001UL;
 // Second decoded packet: chassis values that need firmware-side decoding (e.g.
 // the steering sign fix), so RaceChrono doesn't have to decode raw frames.
 constexpr uint32_t kOpenHaldexChassisPid = 0xFFFF0002UL;
+constexpr uint32_t kOpenHaldexWheelPid = 0xFFFF0003UL;  // FL, FR, RL, RR in 0.01 km/h
 constexpr uint16_t kMinNotifyIntervalMs = 20; // Protect the control loop: max 50 Hz per selected PID.
 constexpr uint16_t kDefaultTelemetryIntervalMs = 50;
 constexpr uint8_t kFilterCapacity = 32;
@@ -220,6 +221,14 @@ void queueDecodedTelemetry() {
   chassis[7] = (received_abs_active ? 0x01 : 0) | (received_esp_active ? 0x02 : 0) | (received_eds_active ? 0x04 : 0) |
                (received_reverse_active ? 0x08 : 0);
   queuePacket(kOpenHaldexChassisPid, chassis, sizeof(chassis));
+
+  // 0xFFFF0003: four wheel speeds, uint16 big-endian, 0.01 km/h each.
+  uint8_t wheels[8];
+  for (int i = 0; i < 4; i++) {
+    wheels[i * 2] = (uint8_t)(received_wheel_speed_centi[i] >> 8);
+    wheels[i * 2 + 1] = (uint8_t)received_wheel_speed_centi[i];
+  }
+  queuePacket(kOpenHaldexWheelPid, wheels, sizeof(wheels));
 }
 
 // Returns the subscriber count after the change.
