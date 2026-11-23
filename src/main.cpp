@@ -28,6 +28,7 @@
 #include "functions/telemetry/racechrono_wifi.h"
 #endif
 #include "functions/telemetry/mmi_link.h"
+#include "functions/presets/presets.h"
 
 #include <esp_heap_caps.h>
 
@@ -384,6 +385,7 @@ void setup() {
   storageLoad();
   diagUdsInit();
   diagUdsHaldexTempPollInit();
+  presetsInit();  // after storageLoad: needs LittleFS and the persisted active id
   LOG_INFO("system", "Storage loaded and logger active");
 
   // BLE claims its controller memory before tasks and Wi-Fi fragment the heap.

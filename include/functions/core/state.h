@@ -198,6 +198,7 @@ bool dashboardSignalsSet(const String* slots, size_t count, uint32_t timeout_ms 
 extern long lastCANChassisTick;
 extern long lastCANHaldexTick;
 extern uint8_t lastMode;
+extern uint8_t activePresetId;  // last applied preset (255 = none); persisted
 
 extern bool can_ready;
 extern bool can0_ready;

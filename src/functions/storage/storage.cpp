@@ -517,6 +517,7 @@ void storageLoad() {
       mode_schema = has_v2_keys ? MODE_SCHEMA_VERSION : MODE_SCHEMA_LEGACY;
     }
     lastMode = pref.getUChar("lastMode", lastMode);
+    activePresetId = pref.getUChar("activePreset", activePresetId);
     lastMode = normalize_stored_mode(lastMode, mode_schema);
     if (mode_schema < MODE_SCHEMA_VERSION) {
       pref.putUChar(MODE_SCHEMA_KEY, MODE_SCHEMA_VERSION);
@@ -697,6 +698,7 @@ void storageSave() {
   pref.putUChar("haldexGen", haldexGeneration);
   pref.putUChar("lastMode", lastMode);
   pref.putUChar(MODE_SCHEMA_KEY, MODE_SCHEMA_VERSION);
+  pref.putUChar("activePreset", activePresetId);
   pref.putUChar("disableThrottle", disableThrottle);
   pref.putUShort("disableSpeed", disableSpeed);
   pref.putUShort(DISENGAGE_MAP_SPEED_KEY, disengageUnderSpeedMap);

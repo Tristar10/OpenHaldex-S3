@@ -160,6 +160,8 @@ uint8_t map_lock_table[MAP_THROTTLE_BINS][MAP_SPEED_BINS] = {
 
 // ~80 bytes; copying under a spinlock takes microseconds, so neither the CAN
 // control path nor a preset apply ever sees a half-written table.
+uint8_t activePresetId = 255;
+
 static portMUX_TYPE g_map_mux = portMUX_INITIALIZER_UNLOCKED;
 
 void mapTableSnapshot(MapTable& out) {

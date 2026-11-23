@@ -8,6 +8,7 @@
 #include "functions/api/api.h"
 #include "functions/core/state.h"
 #include "functions/telemetry/mmi_link.h"
+#include "functions/presets/presets.h"
 #include "functions/config/pins.h"
 #include "functions/storage/storage.h"
 #include "functions/storage/filelog.h"
@@ -2587,6 +2588,48 @@ static void handleUpdateInstall(ApiReq* request) {
   sendJson(request, started ? 200 : 409, doc);
 }
 
+static void handlePresetsGet(ApiReq* request) {
+  JsonDocument doc;
+  presetsWriteJson(doc.to<JsonObject>());
+  sendJson(request, 200, doc);
+}
+
+static void handlePresetApply(ApiReq* request, const String& body) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) != DeserializationError::Ok) {
+    sendError(request, 400, "invalid json");
+    return;
+  }
+  const int id = doc["id"] | -1;
+  const int32_t version = doc["version"] | -1;
+  if (id < 0 || id > 254) {
+    sendError(request, 400, "invalid id");
+    return;
+  }
+  const PresetResult result = presetsApply((uint8_t)id, version);
+  JsonDocument resp;
+  resp["ok"] = result == PRESET_OK;
+  resp["result"] = (int)result;
+  resp["error"] = result == PRESET_OK ? "" : presetsResultName(result);
+  resp["active"] = presetsActiveId();
+  resp["mode"] = modeName(state.mode);
+  sendJson(request, result == PRESET_OK ? 200 : 409, resp);
+}
+
+static void handlePresetsSave(ApiReq* request, const String& body) {
+  String error;
+  if (!presetsSaveJson(body, error)) {
+    sendError(request, 400, error.c_str());
+    return;
+  }
+  handlePresetsGet(request);
+}
+
+static void handlePresetsReset(ApiReq* request) {
+  presetsResetToDefaults();
+  handlePresetsGet(request);
+}
+
 // Single route table shared by every transport (HTTP and the BLE API bridge),
 // so the iOS app reaches exactly the same handlers the web UI does.
 using ApiGetFn = void (*)(ApiReq*);
@@ -2646,6 +2689,10 @@ static const ApiRoute k_api_routes[] = {
   {"/api/logs/clear", true, nullptr, handleLogsClear},
   {"/api/canview/capture", false, handleCanviewCaptureGet, nullptr},
   {"/api/canview/capture", true, nullptr, handleCanviewCapturePost},
+  {"/api/presets", false, handlePresetsGet, nullptr},
+  {"/api/presets", true, nullptr, handlePresetsSave},
+  {"/api/presets/apply", true, nullptr, handlePresetApply},
+  {"/api/presets/reset", true, handlePresetsReset, nullptr},
 };
 
 // Handlers touch shared static state (CAN View capture, UDS session, maps), so
