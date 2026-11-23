@@ -217,6 +217,46 @@ def wait_for_port(pio: Path, original_port: str, timeout_seconds: float = 12.0) 
     return None
 
 
+def enter_download_mode(pio: Path, port: str, python_executable: str) -> str:
+    """Reboot a running board into the ROM bootloader without pressing buttons.
+
+    Opening the firmware's USB CDC port at 1200 baud makes the ESP32-S3 Arduino
+    core reset into download mode (the "1200 bps touch"), which then shows up as
+    a new port. If nothing changes (already in download mode, or a firmware that
+    ignores the touch), the original port is returned and esptool's own reset is
+    tried as before.
+    """
+    before = {str(d["port"]) for d in list_serial_devices(pio, announce=False)}
+    touch = (
+        "import serial,sys,time\n"
+        "try:\n"
+        "    s=serial.Serial(sys.argv[1],1200); s.dtr=False; time.sleep(0.3); s.close()\n"
+        "except Exception:\n"
+        "    pass\n"
+    )
+    subprocess.run([python_executable, "-c", touch, port], check=False, capture_output=True)
+    deadline = time.time() + 8.0
+    while time.time() < deadline:
+        time.sleep(0.5)
+        devices = [d for d in list_serial_devices(pio, announce=False) if device_score(d) > 0]
+        ports = {str(d["port"]) for d in devices}
+        new_ports = sorted(ports - before)
+        if new_ports:
+            print(f"Board rebooted into download mode on {new_ports[0]} (no buttons needed).")
+            return new_ports[0]
+        if port not in ports and ports:
+            # Same name may come back; keep waiting briefly for it.
+            continue
+    return port
+
+
+def one_board_build() -> bool:
+    try:
+        return "-D OH_ENABLE_WEB=0" in (PROJECT_DIR / "platformio.ini").read_text()
+    except OSError:
+        return False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build and flash OpenHaldex-S3 firmware and LittleFS in one operation."
@@ -283,6 +323,8 @@ def main() -> int:
         require_files(required)
 
     esptool = find_esptool()
+    if not args.dry_run:
+        port = enter_download_mode(pio, port, esptool[0])
     flash_command = esptool + [
         "--chip",
         "esp32s3",
@@ -349,8 +391,11 @@ def main() -> int:
         print(f"Application serial port: {detected_port}")
     else:
         print("The application serial port did not reappear automatically; press RESET once.")
-    print("Wi-Fi: OpenHaldex-S3")
-    print("Web UI: http://192.168.4.1 or http://openhaldex.local")
+    if one_board_build():
+        print("Bluetooth: OpenHaldex-RC (iOS app + RaceChrono); Wi-Fi only joins the MMI hotspot")
+    else:
+        print("Wi-Fi: OpenHaldex-S3")
+        print("Web UI: http://192.168.4.1 or http://openhaldex.local")
     return 0
 
 
