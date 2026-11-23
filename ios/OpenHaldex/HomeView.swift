@@ -65,7 +65,7 @@ struct HomeView: View {
             VStack(spacing: 16) {
                 statusRow
                 PresetBar()
-                drivetrain(carHeight: 360)
+                drivetrain(carHeight: 470)
                 modeStrip
                 ratioCard
                 haldexCard

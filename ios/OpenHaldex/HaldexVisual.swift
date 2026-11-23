@@ -11,7 +11,8 @@ struct HaldexVisual: View {
     let split: (front: Int, rear: Int)?
     let clutchTemp: Int?
     let tempProtection: Bool
-    var carHeight: CGFloat = 360
+    var carHeight: CGFloat = 470
+    var gaugeSize: CGFloat = 100
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,13 +25,13 @@ struct HaldexVisual: View {
                     tag("STOCK CONTROL", Theme.ice)
                 }
             }
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 HaldexCar(lockActual: lockActual, steeringDeg: steeringDeg, off: off, live: live,
                           split: split, height: carHeight)
-                VStack(spacing: 18) {
+                VStack(spacing: 22) {
                     LockGauge(actual: lockActual, target: lockTarget, live: live)
-                        .frame(width: 150, height: 150)
-                    VStack(spacing: 12) {
+                        .frame(width: gaugeSize, height: gaugeSize)
+                    VStack(alignment: .leading, spacing: 16) {
                         row("TARGET") {
                             Circle().fill(Theme.pink).frame(width: 6, height: 6)
                             Text("\(lockTarget)%").font(.subheadline.monospacedDigit().bold())
@@ -61,12 +62,14 @@ struct HaldexVisual: View {
             .overlay(Capsule().stroke(c.opacity(0.4), lineWidth: 1))
     }
 
+    /// Stacked stat (label over value) so the column stays narrow beside
+    /// the big car.
     private func row<V: View>(_ label: String, @ViewBuilder _ value: () -> V) -> some View {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(label).font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
-            Spacer()
-            value()
+            HStack(spacing: 6) { value() }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -82,10 +85,9 @@ struct ClutchTempBar: View {
         let t = Double(tempC ?? 0)
         let frac = min(max(t / maxC, 0), 1)
         let hot = protection || t >= hotC
-        VStack(spacing: 5) {
-            HStack {
-                Text("CLUTCH").font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
-                Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            Text("CLUTCH").font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
                 Image(systemName: hot ? "thermometer.high" : "thermometer.medium")
                     .foregroundStyle(hot ? Theme.pink : Theme.ice)
                 Text(tempC.map { "\($0)°C" } ?? "—").font(.subheadline.monospacedDigit().bold())
