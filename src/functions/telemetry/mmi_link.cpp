@@ -260,6 +260,16 @@ void mmiLinkTickImpl() {
 
   const bool sta = (WiFi.status() == WL_CONNECTED);
   IPAddress gateway = sta ? WiFi.gatewayIP() : IPAddress(0, 0, 0, 0);
+  if (sta && gateway == IPAddress(0, 0, 0, 0)) {
+    // The MMI hotspot sends an empty DHCP router option when the car has no
+    // internet, so there is no gateway. The MMI is the subnet's .1
+    // (10.173.189.1 in the car): use (localIP & mask) | 1.
+    const IPAddress ip = WiFi.localIP();
+    const IPAddress mask = WiFi.subnetMask();
+    if (ip != IPAddress(0, 0, 0, 0)) {
+      gateway = IPAddress(ip[0] & mask[0], ip[1] & mask[1], ip[2] & mask[2], (ip[3] & mask[3]) | 1);
+    }
+  }
   if (sta && g_target_override != 0) {
     gateway = IPAddress(g_target_override);
   }

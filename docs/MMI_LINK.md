@@ -48,6 +48,14 @@ rejoin once. This already happens with the existing STA (OTA) feature.
 
 The serial/file log shows `[mmi]` lines: gateway found, link up, link lost.
 
+### No gateway (car without internet)
+
+Without an internet connection the MMI's dnsmasq sends an empty DHCP router
+option, so `WiFi.gatewayIP()` is 0.0.0.0. The board then uses
+`(localIP & subnetMask) | 1` as the head unit, which is 10.173.189.1 in the
+car (fixed in the stock MMI script). A real gateway is still used when there
+is one, and the bench target below overrides both (since v1.1.16).
+
 ### Bench target (testing without the car)
 
 `POST /api/wifi {"mmiTarget":"172.20.10.3"}` (app: More → Wi-Fi → Bench test)

@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.15",
-  "notes": "OpenHaldex-S3 v1.1.15 (one-board-ble): MMI link-up fix; active preset map restored after restart",
+  "version": "v1.1.16",
+  "notes": "OpenHaldex-S3 v1.1.16 (one-board-ble): MMI link falls back to subnet .1 when the hotspot gives no gateway",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }
