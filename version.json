@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.3",
-  "notes": "OpenHaldex-S3 v1.1.3 removes the engine ECU probe (gateway does not route diagnostics from the chassis bus)",
+  "version": "v1.1.4",
+  "notes": "OpenHaldex-S3 v1.1.4 (one-board-ble): RaceChrono over BLE on the main board, RC3 compiled out, task stacks trimmed for internal RAM",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

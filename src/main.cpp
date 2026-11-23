@@ -17,9 +17,18 @@
 #include "functions/net/update.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
+#include "functions/telemetry/racechrono_ble.h"
+#if OH_ENABLE_RC3
 #include "functions/telemetry/racechrono_wifi.h"
+#endif
+
+#include <esp_heap_caps.h>
 
 static AsyncWebServer server(80);
+
+// Internal RAM, not PSRAM, is the limit once BLE + CAN + Wi-Fi run together.
+// loopTask peaks ~4 KB; Arduino's default reserves 8 KB.
+SET_LOOP_TASK_STACK_SIZE(6 * 1024);
 
 static const char* AP_SSID = "OpenHaldex-S3";
 static const char* MDNS_NAME = "openhaldex";
@@ -258,6 +267,8 @@ void wifiApplySettings() {
 void setup() {
 
   Serial.begin(115200);
+  // General allocations over 256 B go to the (otherwise idle) 8 MB PSRAM.
+  heap_caps_malloc_extmem_enable(256);
   LOG_INFO("system", "OpenHaldex S3 starting");
 
   mappedInputSignalsInit();
@@ -279,14 +290,19 @@ void setup() {
   diagUdsHaldexTempPollInit();
   LOG_INFO("system", "Storage loaded and logger active");
 
+  // BLE claims its controller memory before tasks and Wi-Fi fragment the heap.
+  racechronoBleInit();
+
   tasksInit();
   powerStartMonitor();
 
   wifiStart();
+#if OH_ENABLE_RC3
   racechronoWifiInit();
+#endif
 
   updateInit();
-  xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
+  xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 2560, nullptr, 1, nullptr, OH_APP_TASK_CORE);
   xTaskCreatePinnedToCore(internetCheckTask, "internetCheck", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 
   webInit(server);
@@ -294,7 +310,26 @@ void setup() {
   server.begin();
 }
 
+#if OH_MEM_DIAG
+static void memDiagTick() {
+  static uint32_t last_ms = 0;
+  if (millis() - last_ms < 5000) {
+    return;
+  }
+  last_ms = millis();
+  Serial.printf("[MEM] up=%lus free_internal=%u largest=%u min_ever=%u free_psram=%u\n",
+                (unsigned long)(millis() / 1000),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
+#endif
+
 void loop() {
+#if OH_MEM_DIAG
+  memDiagTick();
+#endif
   if (g_ap_dns_running) {
     g_ap_dns.processNextRequest();
   }

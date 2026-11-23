@@ -128,20 +128,20 @@ void startHaldexLearn() {
 void tasksInit() {
   // Create FreeRTOS tasks for periodic operations
   // Tasks handle CAN frame transmission at different rates and EEPROM writes
-  xTaskCreatePinnedToCore(showHaldexState, "showHaldexState", 5000, NULL, 1, NULL, OH_APP_TASK_CORE);
-  xTaskCreatePinnedToCore(updateLabels, "updateLabels", 6000, NULL, 2, NULL, OH_APP_TASK_CORE);
+  xTaskCreatePinnedToCore(showHaldexState, "showHaldexState", 2048, NULL, 1, NULL, OH_APP_TASK_CORE);
+  xTaskCreatePinnedToCore(updateLabels, "updateLabels", 2048, NULL, 2, NULL, OH_APP_TASK_CORE);
 #if OH_ENABLE_EEP_TASK
   xTaskCreatePinnedToCore(writeEEP, "writeEEP", 4096, NULL, 3, NULL, OH_APP_TASK_CORE);
 #endif
   xTaskCreatePinnedToCore(updateTriggers, "updateTriggers", 2000, NULL, 4, NULL, OH_CAN_TASK_CORE);
 
   if (can_ready) {
-    xTaskCreatePinnedToCore(frames1000, "frames1000", 8000, NULL, 5, &handle_frames1000, OH_CAN_TASK_CORE);
-    xTaskCreatePinnedToCore(frames200, "frames200", 8000, NULL, 6, &handle_frames200, OH_CAN_TASK_CORE);
-    xTaskCreatePinnedToCore(frames100, "frames100", 8000, NULL, 7, &handle_frames100, OH_CAN_TASK_CORE);
-    xTaskCreatePinnedToCore(frames25, "frames25", 8000, NULL, 8, &handle_frames25, OH_CAN_TASK_CORE);
-    xTaskCreatePinnedToCore(frames20, "frames20", 8000, NULL, 9, &handle_frames20, OH_CAN_TASK_CORE);
-    xTaskCreatePinnedToCore(frames10, "frames10", 8000, NULL, 10, &handle_frames10, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames1000, "frames1000", 3072, NULL, 5, &handle_frames1000, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames200, "frames200", 3072, NULL, 6, &handle_frames200, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames100, "frames100", 3072, NULL, 7, &handle_frames100, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames25, "frames25", 3072, NULL, 8, &handle_frames25, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames20, "frames20", 3072, NULL, 9, &handle_frames20, OH_CAN_TASK_CORE);
+    xTaskCreatePinnedToCore(frames10, "frames10", 3072, NULL, 10, &handle_frames10, OH_CAN_TASK_CORE);
 
     if (!isStandalone) {
       vTaskSuspend(handle_frames1000);

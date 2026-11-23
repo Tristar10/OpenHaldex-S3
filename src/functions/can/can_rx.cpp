@@ -9,6 +9,7 @@
 #include "functions/core/calcs.h"
 #include "functions/can/can_id.h"
 #include "functions/canview/canview.h"
+#include "functions/telemetry/racechrono_ble.h"
 #include "functions/canview/vw_mqb_chassis_dbc.h"
 #include "functions/canview/vw_pq_chassis_dbc.h"
 #include "functions/can/can_state.h"
@@ -364,6 +365,9 @@ void parseCAN_chs(void* arg) {
 
     uint16_t burst_frames = 0;
     while (chassis_can_receive(rx_msg_chs())) {
+      // Offer the original chassis frame to a non-blocking telemetry queue before
+      // any Haldex control mutation. Queue saturation drops telemetry only.
+      racechronoBleSubmitChassisFrame(rx_msg_chs());
       lastCANChassisTick = millis();
       const uint32_t now_ms = millis();
       powerTrackChassisFrame(rx_msg_chs(), now_ms);

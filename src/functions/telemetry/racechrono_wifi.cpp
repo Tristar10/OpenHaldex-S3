@@ -1,3 +1,4 @@
+#if OH_ENABLE_RC3
 #include "functions/telemetry/racechrono_wifi.h"
 
 #include <Arduino.h>
@@ -234,3 +235,5 @@ void racechronoWifiInit() {
 
   LOG_INFO("racechrono", "RaceChrono WiFi bridge ready port=%u", (unsigned int)kTcpPort);
 }
+
+#endif  // OH_ENABLE_RC3
