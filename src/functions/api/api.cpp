@@ -7,6 +7,7 @@
 
 #include "functions/api/api.h"
 #include "functions/core/state.h"
+#include "functions/telemetry/mmi_link.h"
 #include "functions/config/pins.h"
 #include "functions/storage/storage.h"
 #include "functions/storage/filelog.h"
@@ -1828,10 +1829,25 @@ static void handleNetworkGet(ApiReq* request) {
 
   doc["staConnected"] = staConnected;
   doc["staIp"] = staConnected ? WiFi.localIP().toString() : String("");
+  doc["staSsid"] = staConnected ? WiFi.SSID() : String("");
+  doc["staRssi"] = staConnected ? WiFi.RSSI() : 0;
   doc["ap"] = apEnabled;
   doc["apIp"] = apEnabled ? WiFi.softAPIP().toString() : String("");
   doc["hostname"] = "openhaldex.local";
   doc["internet"] = wifiInternetOk();
+
+  MmiLinkStats mmi;
+  mmiLinkGetStats(mmi);
+  JsonObject m = doc["mmi"].to<JsonObject>();
+  m["linked"] = mmi.linked;
+  m["gateway"] = mmi.staConnected ? IPAddress(mmi.gateway).toString() : String("");
+  m["sent"] = mmi.sent;
+  m["acks"] = mmi.acks;
+  m["rttMs"] = mmi.rttLastMs;
+  m["rttMaxMs"] = mmi.rttMaxMs;
+  m["huRx"] = mmi.huRx;
+  m["huLost"] = mmi.huLost;
+  m["lastAckAgeMs"] = mmi.lastAckAgeMs;
 
   sendJson(request, 200, doc);
 }

@@ -27,6 +27,7 @@
 #if OH_ENABLE_RC3
 #include "functions/telemetry/racechrono_wifi.h"
 #endif
+#include "functions/telemetry/mmi_link.h"
 
 #include <esp_heap_caps.h>
 
@@ -395,6 +396,7 @@ void setup() {
 #if OH_ENABLE_RC3
   racechronoWifiInit();
 #endif
+  mmiLinkInit();
 
   xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 2560, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 #if OH_ENABLE_WEB
@@ -432,5 +434,6 @@ void loop() {
     g_ap_dns.processNextRequest();
   }
 #endif
+  mmiLinkTick();
   delay(10);
 }

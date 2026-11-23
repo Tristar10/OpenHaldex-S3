@@ -216,6 +216,7 @@ struct WifiView: View {
     @State private var ssid = ""
     @State private var password = ""
     @State private var staEnabled = true
+    @State private var net = JSON(nil)
 
     var body: some View {
         Form {
@@ -233,8 +234,33 @@ struct WifiView: View {
             } footer: {
                 Text("The controller joins the MMI's hotspot to feed the custom gauges.")
             }
+            Section("Hotspot") {
+                ValueRow("Joined", net["staConnected"].boolValue ? net["staSsid"].stringValue : "no")
+                if net["staConnected"].boolValue {
+                    ValueRow("Signal", "\(net["staRssi"].intValue) dBm")
+                    ValueRow("IP", net["staIp"].stringValue)
+                }
+            }
+            Section {
+                let m = net["mmi"]
+                ValueRow("Link", m["linked"].boolValue ? "up" : (net["staConnected"].boolValue ? "probing…" : "down"))
+                ValueRow("Head unit", m["gateway"].stringValue.isEmpty ? "—" : m["gateway"].stringValue)
+                ValueRow("Sent / acked", "\(m["sent"].intValue) / \(m["acks"].intValue)")
+                ValueRow("Round trip", "\(m["rttMs"].intValue) ms (max \(m["rttMaxMs"].intValue))")
+                ValueRow("Head unit received / lost", "\(m["huRx"].intValue) / \(m["huLost"].intValue)")
+            } header: {
+                Text("MMI gauge link")
+            } footer: {
+                Text("UDP 49160 to the hotspot gateway. 1 Hz probes until the head unit answers, then 20 Hz.")
+            }
         }
         .navigationTitle("Wi-Fi")
+        .task {
+            while !Task.isCancelled {
+                if let j = try? await model.get("/api/network") { net = j }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+        }
         .task {
             if let j = try? await model.get("/api/wifi") {
                 ssid = j["ssid"].stringValue

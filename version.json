@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.5",
-  "notes": "OpenHaldex-S3 v1.1.5 (one-board-ble): iOS app over BLE replaces the web UI; Wi-Fi is client-only to the MMI hotspot (no AP/web/DNS/mDNS/update check); RaceChrono chassis PID; steering sign fix",
+  "version": "v1.1.6",
+  "notes": "OpenHaldex-S3 v1.1.6 (one-board-ble): MMI link merged (UDP TTG1 to the MMI hotspot gateway, 20 Hz once acked); link stats in the app Wi-Fi page",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }
