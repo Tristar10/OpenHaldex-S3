@@ -6,6 +6,7 @@
 #include "functions/api/api.h"
 #include "functions/config/config.h"
 #include "functions/core/state.h"
+#include "functions/presets/presets.h"
 #include "nimble/porting/nimble/include/os/os_mbuf.h"
 
 #include "freertos/FreeRTOS.h"
@@ -187,6 +188,7 @@ uint16_t ageMs(long tick) {
 //  6-7 Haldex clutch temp C (int16)        8 Haldex generation
 //  9 learn progress %     10-11 chassis frame age ms   12-13 Haldex frame age ms
 //  14 flags B            15-16 steering wheel angle, 0.1 deg (int16)
+//  17 active preset id (255 = none)
 // flags A: 0 CAN ready, 1 bus failure, 2 temp protection, 3 coupling open,
 //          4 controller disabled, 5 CAN View capture, 6 clutch temp valid, 7 learning
 // flags B: 0 chassis bus seen, 1 Haldex bus seen, 2 reverse
@@ -194,7 +196,7 @@ void sendLive() {
   if (!g_live || g_live_subscribers == 0 || os_msys_num_free() < kMbufReserve) {
     return;
   }
-  uint8_t p[17] = {};
+  uint8_t p[18] = {};
   p[0] = 1;
   p[1] = (uint8_t)state.mode;
   p[2] = (uint8_t)openhaldexEffectiveMode();
@@ -219,6 +221,7 @@ void sendLive() {
   const int16_t steering = received_steering_angle_decidegrees;
   p[15] = (uint8_t)steering;
   p[16] = (uint8_t)((uint16_t)steering >> 8);
+  p[17] = presetsActiveId();
   g_live->notify(p, sizeof(p));
 }
 

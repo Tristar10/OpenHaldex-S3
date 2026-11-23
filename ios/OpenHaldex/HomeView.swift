@@ -4,6 +4,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var api: BLEApi
+    @EnvironmentObject var presets: PresetStore
     @State private var rearBias: Double = 50
     @State private var editingBias = false
 
@@ -32,6 +33,8 @@ struct HomeView: View {
                 VStack(spacing: 16) {
                     HStack { ConnectionBadge(); Spacer() }
 
+                    PresetBar()
+
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                         modeButton("Lock", active: Self.lockModes[mode] != nil) { model.setMode(lockMode(for: rearBias)) }
                         modeButton("Throttle", active: mode == "THROTTLE") { model.setMode("THROTTLE") }
@@ -55,7 +58,13 @@ struct HomeView: View {
                 .padding()
             }
             .navigationTitle("OpenHaldex")
-            .refreshable { await model.refreshStatus() }
+            .refreshable {
+                await model.refreshStatus()
+                await presets.load(model)
+            }
+            .task(id: api.state) {
+                if model.connected { await presets.load(model) }
+            }
         }
         .onChange(of: mode) { _, m in
             if !editingBias, let r = Self.lockModes[m] { rearBias = Double(r) }

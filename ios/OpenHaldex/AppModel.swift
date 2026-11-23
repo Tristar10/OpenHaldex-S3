@@ -121,6 +121,14 @@ enum Mock {
             return JSON(["files": [["path": "/logs/sys.log", "size": 2048]]])
         case "/api/wifi":
             return JSON(["ssid": "MMI-Hotspot", "staEnabled": true, "apPasswordSet": false])
+        case "/api/presets":
+            return JSON(["version": 48879, "active": 2, "custom": false, "presets": [
+                ["id": 1, "name": "Street", "mode": "STOCK", "map": "", "mapLoaded": true],
+                ["id": 2, "name": "Autocross", "mode": "MAP", "map": "/maps/aggressive.txt", "mapLoaded": true],
+                ["id": 3, "name": "Launch", "mode": "5050", "map": "", "mapLoaded": true],
+                ["id": 4, "name": "Wet", "mode": "MAP", "map": "/maps/conservative.txt", "mapLoaded": true],
+                ["id": 5, "name": "FWD", "mode": "FWD", "map": "", "mapLoaded": true],
+            ]])
         case "/api/learn/status":
             return JSON(["active": false, "progress": 0, "tableValid": true, "currentCF": 0])
         default:

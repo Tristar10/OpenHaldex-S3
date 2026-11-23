@@ -5,6 +5,9 @@ struct ModesView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Presets") {
+                    NavigationLink("Presets") { PresetsEditor() }
+                }
                 Section("Curve modes") {
                     NavigationLink("Speed") { CurveEditor(kind: .speed) }
                     NavigationLink("Throttle") { CurveEditor(kind: .throttle) }

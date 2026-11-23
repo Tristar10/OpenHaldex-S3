@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.6",
-  "notes": "OpenHaldex-S3 v1.1.6 (one-board-ble): MMI link merged (UDP TTG1 to the MMI hotspot gateway, 20 Hz once acked); link stats in the app Wi-Fi page",
+  "version": "v1.1.7",
+  "notes": "OpenHaldex-S3 v1.1.7 (one-board-ble): presets (catalog, atomic apply, app + MMI TTP1/TTC1/TTR1, channel 22); atomic map table",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

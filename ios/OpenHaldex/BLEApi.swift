@@ -296,6 +296,8 @@ struct LiveStatus: Equatable {
     var reverse = false
     /// Steering wheel angle in degrees (nil on firmware without it).
     var steeringDeg: Double?
+    /// Active preset id (nil = none / older firmware).
+    var activePreset: Int?
 
     init?(_ d: Data) {
         let b = [UInt8](d)
@@ -323,6 +325,9 @@ struct LiveStatus: Equatable {
         reverse = b[14] & 0x04 != 0
         if b.count >= 17 {
             steeringDeg = Double(Int16(bitPattern: UInt16(b[15]) | UInt16(b[16]) << 8)) / 10
+        }
+        if b.count >= 18, b[17] != 255 {
+            activePreset = Int(b[17])
         }
     }
 }
