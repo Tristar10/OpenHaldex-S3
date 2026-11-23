@@ -1766,6 +1766,7 @@ static void handleWifiGet(ApiReq* request) {
   storageGetWifiCreds(ssid, pass);
   doc["ssid"] = ssid;
   doc["staEnabled"] = storageGetWifiStaEnabled();
+  doc["mmiTarget"] = storageGetMmiTarget();
   doc["apPasswordSet"] = storageGetWifiApPassword(ap_pass) && ap_pass.length() >= 8 && ap_pass.length() <= 63;
   sendJson(request, 200, doc);
 }
@@ -1811,6 +1812,16 @@ static void handleWifiPost(ApiReq* request, const String& body) {
       storageSetWifiApPassword(ap_pass);
     }
     changed = true;
+  }
+
+  if (doc.containsKey("mmiTarget")) {
+    String target = doc["mmiTarget"] | "";
+    target.trim();
+    if (!mmiLinkSetTarget(target)) {
+      sendError(request, 400, "mmiTarget must be an IPv4 address or empty");
+      return;
+    }
+    storageSetMmiTarget(target);
   }
 
   if (doc.containsKey("staEnabled")) {

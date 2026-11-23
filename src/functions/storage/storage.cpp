@@ -1010,3 +1010,16 @@ void storageClearWifiApPassword() {
   pref.remove(WIFI_AP_PASS_KEY);
   LOG_WARN("storage", "WiFi AP password cleared");
 }
+
+String storageGetMmiTarget() {
+  return pref.getString("mmiTarget", "");
+}
+
+void storageSetMmiTarget(const String& ip) {
+  if (ip.length() == 0) {
+    pref.remove("mmiTarget");
+  } else {
+    pref.putString("mmiTarget", ip);
+  }
+  LOG_INFO("storage", "MMI target override %s", ip.length() ? ip.c_str() : "cleared");
+}

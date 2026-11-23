@@ -217,6 +217,7 @@ struct WifiView: View {
     @State private var ssid = ""
     @State private var password = ""
     @State private var staEnabled = true
+    @State private var mmiTarget = ""
     @State private var net = JSON(nil)
 
     var body: some View {
@@ -254,6 +255,19 @@ struct WifiView: View {
             } footer: {
                 Text("UDP 49160 to the hotspot gateway. 1 Hz probes until the head unit answers, then 20 Hz.")
             }
+            Section {
+                TextField("Send to (blank = hotspot gateway)", text: $mmiTarget)
+                    .keyboardType(.decimalPad).autocorrectionDisabled()
+                Button("Save bench target") {
+                    model.perform(mmiTarget.isEmpty ? "Target cleared" : "Target set") {
+                        try await model.post("/api/wifi", ["mmiTarget": mmiTarget])
+                    }
+                }
+            } header: {
+                Text("Bench test")
+            } footer: {
+                Text("Only for testing without the car: send the gauge data to this IP (e.g. a Mac on the same hotspot) instead of the hotspot's gateway. Leave blank in the car.")
+            }
         }
         .navigationTitle("Wi-Fi")
         .task {
@@ -266,6 +280,7 @@ struct WifiView: View {
             if let j = try? await model.get("/api/wifi") {
                 ssid = j["ssid"].stringValue
                 staEnabled = j["staEnabled"].bool ?? true
+                mmiTarget = j["mmiTarget"].stringValue
             }
         }
     }

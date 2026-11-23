@@ -8,6 +8,7 @@
 #include "functions/config/config.h"
 #include "functions/core/state.h"
 #include "functions/presets/presets.h"
+#include "functions/storage/storage.h"
 
 #include "freertos/FreeRTOS.h"
 
@@ -197,6 +198,10 @@ void handleCommand(const uint8_t* in, int n, IPAddress gateway) {
   sendCommandReply(gateway, seq, result);
 }
 
+// Bench override: send to this address instead of the STA gateway (0 = use
+// the gateway, which is the MMI in the car). Set from /api/wifi "mmiTarget".
+static volatile uint32_t g_target_override = 0;
+
 // Drains queued datagrams from the head unit: "TTA1" acks (echoed seq u16 @4,
 // reserved u16 @6, rx u32 @8, lost u32 @12, head-unit uptime u32 @16) and
 // "TTC1" commands. Anything not from the STA gateway is ignored.
@@ -254,7 +259,10 @@ void mmiLinkTickImpl() {
   }
 
   const bool sta = (WiFi.status() == WL_CONNECTED);
-  const IPAddress gateway = sta ? WiFi.gatewayIP() : IPAddress(0, 0, 0, 0);
+  IPAddress gateway = sta ? WiFi.gatewayIP() : IPAddress(0, 0, 0, 0);
+  if (sta && g_target_override != 0) {
+    gateway = IPAddress(g_target_override);
+  }
 
   if (!sta || gateway == IPAddress(0, 0, 0, 0)) {
     portENTER_CRITICAL(&g_stats_mux);
@@ -359,7 +367,22 @@ void mmiLinkInit() {
     g_sent_seq[i] = 0xFFFF;
   }
   g_started = true;
+  mmiLinkSetTarget(storageGetMmiTarget());
   LOG_INFO("mmi", "MMI link ready, udp %u to STA gateway", (unsigned int)kPort);
+}
+
+bool mmiLinkSetTarget(const String& ip) {
+  if (ip.length() == 0) {
+    g_target_override = 0;
+    return true;
+  }
+  IPAddress addr;
+  if (!addr.fromString(ip)) {
+    return false;
+  }
+  g_target_override = (uint32_t)addr;
+  LOG_WARN("mmi", "bench target override %s (not the STA gateway)", ip.c_str());
+  return true;
 }
 
 void mmiLinkTick() {

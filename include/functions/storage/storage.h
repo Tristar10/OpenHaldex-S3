@@ -32,3 +32,5 @@ void storageSetWifiStaEnabled(bool enabled);
 bool storageGetWifiApPassword(String& pass);
 void storageSetWifiApPassword(const String& pass);
 void storageClearWifiApPassword();
+String storageGetMmiTarget();
+void storageSetMmiTarget(const String& ip);  // empty clears

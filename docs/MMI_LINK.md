@@ -48,6 +48,14 @@ rejoin once. This already happens with the existing STA (OTA) feature.
 
 The serial/file log shows `[mmi]` lines: gateway found, link up, link lost.
 
+### Bench target (testing without the car)
+
+`POST /api/wifi {"mmiTarget":"172.20.10.3"}` (app: More → Wi-Fi → Bench test)
+sends the datagrams to that address instead of the STA gateway, so a Mac on a
+phone hotspot can play the head unit (`scripts/mmi_sim.py` or `ttlink`). Acks
+and commands are only accepted from that address. `{"mmiTarget":""}` clears it;
+leave it blank in the car. Stored in NVS (`mmiTarget`).
+
 ## Protocol
 
 Big-endian. OpenHaldex to head unit, `TTG1`:

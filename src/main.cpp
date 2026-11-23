@@ -400,7 +400,7 @@ void setup() {
 #endif
   mmiLinkInit();
 
-  xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 2560, nullptr, 1, nullptr, OH_APP_TASK_CORE);
+  xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 #if OH_ENABLE_WEB
   updateInit();
   xTaskCreatePinnedToCore(internetCheckTask, "internetCheck", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 #include <stdint.h>
 
 // Sends live values to an Audi MMI (MIB2 head unit) over the MMI's own Wi-Fi
@@ -15,6 +17,9 @@
 // side never gets the full 20 Hz stream.
 void mmiLinkInit();
 void mmiLinkTick();
+// Bench only: send to this IPv4 address instead of the STA gateway. Empty
+// string clears it. Returns false for an invalid address.
+bool mmiLinkSetTarget(const String& ip);
 
 struct MmiLinkStats {
   bool staConnected;
