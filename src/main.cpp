@@ -18,6 +18,7 @@
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
 #include "functions/telemetry/racechrono_wifi.h"
+#include "functions/telemetry/mmi_link.h"
 
 static AsyncWebServer server(80);
 
@@ -284,6 +285,7 @@ void setup() {
 
   wifiStart();
   racechronoWifiInit();
+  mmiLinkInit();
 
   updateInit();
   xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
@@ -298,5 +300,6 @@ void loop() {
   if (g_ap_dns_running) {
     g_ap_dns.processNextRequest();
   }
+  mmiLinkTick();
   delay(10);
 }
