@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+#include "functions/api/api.h"  // OH_ENABLE_WEB
 #include "functions/config/config.h"
 #include "functions/core/state.h"
 
@@ -193,11 +194,13 @@ void mmiLinkTickImpl() {
   if ((uint32_t)gateway != last_gateway) {
     last_gateway = (uint32_t)gateway;
     LOG_INFO("mmi", "STA gateway %s, probing udp %u", gateway.toString().c_str(), (unsigned int)kPort);
+#if OH_ENABLE_WEB
     // OpenHaldex's own AP is 192.168.4.1/24; a hotspot on the same subnet
-    // cannot be reached reliably.
+    // cannot be reached reliably. (No AP in the one-board build.)
     if (gateway[0] == 192 && gateway[1] == 168 && gateway[2] == 4) {
       LOG_WARN("mmi", "STA gateway is on the AP subnet 192.168.4.x");
     }
+#endif
   }
 
   readAcks(gateway);

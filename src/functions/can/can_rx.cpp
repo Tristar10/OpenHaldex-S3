@@ -523,8 +523,8 @@ void parseCAN_chs(void* arg) {
           if (haldexGeneration == 5) {
             const uint16_t raw = (uint16_t)(rx_msg_chs().data[2] | ((rx_msg_chs().data[3] & 0x1F) << 8));
             const bool negative = (rx_msg_chs().data[3] >> 5) & 0x01;
-            // Sign flipped vs the raw VZ bit: verified on the car that the
-            // previous mapping reported the steering direction inverted.
+            // Convention: RIGHT = positive, LEFT = negative. The raw VZ bit
+            // mapping gave left-positive on the car, so it is flipped here.
             const float angle_deg = negative ? (raw * 0.1f) : -(raw * 0.1f);
             received_steering_angle_decidegrees = (int16_t)lroundf(angle_deg * 10.0f);
           }

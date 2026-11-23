@@ -82,7 +82,7 @@ u16, received u32, lost u32, head-unit uptime ms u32.
 | 16 | DSG sump degC | `received_trans_temp_c` |
 | 18 | oil pressure bar | `received_oil_pressure_decibar` / 10 |
 | 19 | Haldex clutch degC (only once valid) | `received_haldex_clutch_temp_c` |
-| 20 | steering angle deg | `received_steering_angle_decidegrees` / 10 |
+| 20 | steering angle deg (right = +, left = −) | `received_steering_angle_decidegrees` / 10 |
 | 21 | brake pressure bar | `received_brake_pressure_decibar` / 10 |
 | 60 | OpenHaldex uptime s | |
 | 61 | STA RSSI dBm | |

@@ -53,7 +53,7 @@ sign is already corrected):
 
 | Channel | Unit | RaceChrono equation |
 | --- | --- | --- |
-| Steering angle | deg | `bytesToInt(raw, 0, 2) / 10.0` |
+| Steering angle | deg (right +, left −) | `bytesToInt(raw, 0, 2) / 10.0` |
 | Brake pressure | bar | `bytesToInt(raw, 2, 2) / 10.0` |
 | Haldex clutch temp | °C | `bytesToInt(raw, 4, 2)` (32767 = not read yet) |
 | Gear | number | `G` |
