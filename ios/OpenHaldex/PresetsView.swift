@@ -62,10 +62,19 @@ final class PresetStore: ObservableObject {
     }
 
     func apply(_ item: PresetItem, model: AppModel) {
-        model.perform(item.name) {
-            let r = try await model.post("/api/presets/apply", ["id": item.id, "version": self.version])
-            let a = r["active"].intValue
-            self.active = a == 255 ? nil : a
+        Task {
+            do {
+                let r = try await model.post("/api/presets/apply", ["id": item.id, "version": version])
+                let a = r["active"].intValue
+                active = a == 255 ? nil : a
+                model.toast = "\(item.name) ✓"
+            } catch {
+                model.toast = "\(item.name): \(error.localizedDescription)"
+                // A refusal may mean the catalog changed (e.g. edited from the
+                // MMI side or another phone); refresh so the next tap works.
+                await load(model)
+            }
+            await model.refreshStatus()
         }
     }
 }

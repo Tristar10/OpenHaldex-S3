@@ -92,7 +92,9 @@ the catalog version changes, and every 5 s while linked (UDP may drop it).
 | 12 | 2 | catalog version the head unit is showing, u16 |
 
 Accepted only from the STA gateway with a matching key. A retry with the same
-sequence number is answered again without applying twice.
+sequence number within 5 s is answered again without applying twice; after
+5 s the same number is treated as a new command. Preset names are plain ASCII
+(the head-unit font is unverified for anything else).
 
 **TTR1** OpenHaldex to MMI, command reply (14 bytes), sent immediately.
 

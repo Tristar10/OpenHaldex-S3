@@ -423,7 +423,7 @@ bool initializeBleServer() {
   }
 
   setBleBootPhase(BleBootPhase::StartingTelemetryTask, "Starting telemetry task");
-  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 3072, nullptr, 2, nullptr, OH_APP_TASK_CORE) != pdPASS) {
+  if (xTaskCreatePinnedToCore(telemetryTask, "racechronoBle", 4096, nullptr, 2, nullptr, OH_APP_TASK_CORE) != pdPASS) {
     LOG_ERROR("racechrono", "Unable to start BLE telemetry task");
     return false;
   }

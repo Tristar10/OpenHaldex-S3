@@ -140,6 +140,12 @@ bool parseCatalog(JsonVariantConst doc, Preset* out, uint8_t& count, String& err
       error = "name must be 1..16 characters";
       return false;
     }
+    for (const char* c = name; *c; c++) {
+      if ((unsigned char)*c < 0x20 || (unsigned char)*c > 0x7E) {
+        error = "names must be plain ASCII (MMI font)";
+        return false;
+      }
+    }
     uint8_t mode = 0;
     if (!parseMode(o["mode"] | "", mode)) {
       error = String("invalid mode for ") + name;

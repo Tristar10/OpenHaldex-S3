@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.8",
-  "notes": "OpenHaldex-S3 v1.1.8 (one-board-ble): wheel speeds fixed (were 0 when a speed input was mapped); RaceChrono PID 0xFFFF0003 wheel speeds; stack diagnostics; app RaceChrono setup page",
+  "version": "v1.1.9",
+  "notes": "OpenHaldex-S3 v1.1.9 (one-board-ble): TTC1 retry window, ASCII preset names, RaceChrono task stack 4 KB, app reloads presets after a refusal",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

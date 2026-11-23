@@ -165,17 +165,21 @@ void sendCommandReply(IPAddress gateway, uint16_t cmd_seq, uint8_t result) {
 
 // Command, TTC1: magic, key u32, command seq u16, command u8, then for
 // APPLY_PRESET (1): preset id u8, catalog version u16. 14 bytes.
-// A repeated seq (the head unit retrying after a lost TTR1) is answered again
-// without re-applying.
+// A repeated seq within 5 s (the head unit retrying after a lost TTR1; retries
+// are ~500 ms apart) is answered again without re-applying. After 5 s the same
+// number counts as a new command, so a rebooted head unit that restarts its
+// numbering is not ignored.
 void handleCommand(const uint8_t* in, int n, IPAddress gateway) {
   static int32_t last_seq = -1;
   static uint8_t last_result = 0;
+  static uint32_t last_cmd_ms = 0;
+  constexpr uint32_t kRetryWindowMs = 5000;
   if (n < 14 || get32(in + 4) != kKey) {
     return;
   }
   const uint16_t seq = (uint16_t)((in[8] << 8) | in[9]);
   const uint8_t cmd = in[10];
-  if ((int32_t)seq == last_seq) {
+  if ((int32_t)seq == last_seq && millis() - last_cmd_ms < kRetryWindowMs) {
     sendCommandReply(gateway, seq, last_result);
     return;
   }
@@ -189,6 +193,7 @@ void handleCommand(const uint8_t* in, int n, IPAddress gateway) {
   }
   last_seq = seq;
   last_result = result;
+  last_cmd_ms = millis();
   sendCommandReply(gateway, seq, result);
 }
 
