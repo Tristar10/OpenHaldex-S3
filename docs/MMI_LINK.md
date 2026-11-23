@@ -13,8 +13,8 @@ is decoded twice.
 ## How it connects
 
 - The MMI is the access point; OpenHaldex joins it as a client using the
-  normal **STA Wi-Fi settings** (Setup page: SSID and password of the MMI
-  hotspot). OpenHaldex's own `OpenHaldex-S3` AP keeps running.
+  **STA Wi-Fi settings** (iOS app: More > Wi-Fi; web Setup page in builds with
+  `OH_ENABLE_WEB=1`). The one-board build has no AP of its own.
 - OpenHaldex sends to its STA gateway (the MMI) on **UDP 49160**. The stock
   MMI firewall already lets hotspot clients reach UDP 49153-49162, so the
   head unit needs no firewall change.
@@ -84,6 +84,7 @@ u16, received u32, lost u32, head-unit uptime ms u32.
 | 19 | Haldex clutch degC (only once valid) | `received_haldex_clutch_temp_c` |
 | 20 | steering angle deg (right = +, left = −) | `received_steering_angle_decidegrees` / 10 |
 | 21 | brake pressure bar | `received_brake_pressure_decibar` / 10 |
+| 22 | active preset id (255 = none) | `presetsActiveId()`, see [PRESETS.md](PRESETS.md) |
 | 60 | OpenHaldex uptime s | |
 | 61 | STA RSSI dBm | |
 | 62 | datagrams sent | |
@@ -91,5 +92,9 @@ u16, received u32, lost u32, head-unit uptime ms u32.
 Ids 9, 14, 15 and 17 are reserved on the head-unit side (lambda, lateral and
 longitudinal g, battery) and are not sent. Mode numbers match
 [RACECHRONO_WIFI.md](RACECHRONO_WIFI.md).
+
+Presets: the head unit can also switch OpenHaldex presets (TTP1 catalog,
+TTC1 APPLY_PRESET, TTR1 reply); see [PRESETS.md](PRESETS.md). Bench test
+without a head unit: `scripts/mmi_sim.py`.
 
 Code: `src/functions/telemetry/mmi_link.cpp`.
