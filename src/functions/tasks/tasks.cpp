@@ -131,7 +131,7 @@ void tasksInit() {
   xTaskCreatePinnedToCore(showHaldexState, "showHaldexState", 2048, NULL, 1, NULL, OH_APP_TASK_CORE);
   xTaskCreatePinnedToCore(updateLabels, "updateLabels", 2048, NULL, 2, NULL, OH_APP_TASK_CORE);
 #if OH_ENABLE_EEP_TASK
-  xTaskCreatePinnedToCore(writeEEP, "writeEEP", 4096, NULL, 3, NULL, OH_APP_TASK_CORE);
+  xTaskCreatePinnedToCore(writeEEP, "writeEEP", 5120, NULL, 3, NULL, OH_APP_TASK_CORE);
 #endif
   xTaskCreatePinnedToCore(updateTriggers, "updateTriggers", 2000, NULL, 4, NULL, OH_CAN_TASK_CORE);
 

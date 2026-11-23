@@ -24,6 +24,7 @@ constexpr uint32_t kOpenHaldexTelemetryPid = 0xFFFF0001UL;
 // the steering sign fix), so RaceChrono doesn't have to decode raw frames.
 constexpr uint32_t kOpenHaldexChassisPid = 0xFFFF0002UL;
 constexpr uint32_t kOpenHaldexWheelPid = 0xFFFF0003UL;  // FL, FR, RL, RR in 0.01 km/h
+constexpr uint32_t kOpenHaldexEnginePid = 0xFFFF0004UL;  // temps, boost, oil pressure, torque
 constexpr uint16_t kMinNotifyIntervalMs = 20; // Protect the control loop: max 50 Hz per selected PID.
 constexpr uint16_t kDefaultTelemetryIntervalMs = 50;
 constexpr uint8_t kFilterCapacity = 32;
@@ -231,6 +232,22 @@ void queueDecodedTelemetry() {
     wheels[i * 2 + 1] = (uint8_t)received_wheel_speed_centi[i];
   }
   queuePacket(kOpenHaldexWheelPid, wheels, sizeof(wheels));
+
+  // 0xFFFF0004: engine. 0-3 coolant / oil / intake air / gearbox temp,
+  // degC + 40 (u8). 4 boost, 0.02 bar (u8, gauge). 5 oil pressure, 0.1 bar
+  // (u8). 6-7 gearbox input torque Nm, int16 big-endian (DSG only).
+  auto temp40 = [](int16_t c) { return (uint8_t)constrain((int)c + 40, 0, 255); };
+  uint8_t engine[8];
+  engine[0] = temp40(received_coolant_temp_c);
+  engine[1] = temp40(received_oil_temp_c);
+  engine[2] = temp40(received_intake_air_temp_c);
+  engine[3] = temp40(received_trans_temp_c);
+  engine[4] = (uint8_t)min((uint32_t)received_vehicle_boost / 20UL, 255UL);
+  engine[5] = (uint8_t)constrain((int)received_oil_pressure_decibar, 0, 255);
+  const int16_t torque = received_engine_torque_nm;
+  engine[6] = (uint8_t)((uint16_t)torque >> 8);
+  engine[7] = (uint8_t)torque;
+  queuePacket(kOpenHaldexEnginePid, engine, sizeof(engine));
 }
 
 // Returns the subscriber count after the change.

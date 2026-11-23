@@ -76,6 +76,24 @@ PID `0xFFFF0003`, all in km/h:
 (Before v1.1.8 the controller stopped decoding wheel speeds whenever a speed
 input was mapped in Setup, which the Gen 5 defaults do, so they read 0.)
 
+## Engine
+
+PID `0xFFFF0004` (since v1.1.12):
+
+| Channel | Unit | RaceChrono equation | Source |
+| --- | --- | --- | --- |
+| Coolant temp | °C | `A - 40` | MOTOR_07 0x640 |
+| Oil temp | °C | `B - 40` | MOTOR_07 0x640 |
+| Intake air temp | °C | `C - 40` | MOTOR_07 0x640 |
+| Gearbox temp | °C | `D - 40` | GETRIEBE_12 0x0AE |
+| Boost (gauge) | bar | `E * 0.02` | MOTOR_04 0x107 |
+| Oil pressure | bar | `F / 10.0` | MOTOR_04 0x107 |
+| Gearbox input torque | Nm | `bytesToInt(raw, 6, 2)` | GETRIEBE_12 0x0AE, DSG only |
+
+Gear, boost and oil pressure all come from MOTOR_04 (0x107). If all three read
+0 in the car, that frame is not reaching the board's chassis bus; check for
+`0x107` in CAN View.
+
 The iPhone app can stay connected at the same time; it uses its own service
 and never changes RaceChrono's channel selection.
 

@@ -45,6 +45,15 @@ struct RaceChronoSetupView: View {
             Channel(name: "Wheel speed RL", unit: "km/h", equation: "bytesToUint(raw, 4, 2) / 100.0"),
             Channel(name: "Wheel speed RR", unit: "km/h", equation: "bytesToUint(raw, 6, 2) / 100.0"),
         ]),
+        Packet(pid: 0xFFFF_0004, title: "Engine", channels: [
+            Channel(name: "Coolant temp", unit: "°C", equation: "A - 40"),
+            Channel(name: "Oil temp", unit: "°C", equation: "B - 40"),
+            Channel(name: "Intake air temp", unit: "°C", equation: "C - 40"),
+            Channel(name: "Gearbox temp", unit: "°C", equation: "D - 40"),
+            Channel(name: "Boost", unit: "bar", equation: "E * 0.02"),
+            Channel(name: "Oil pressure", unit: "bar", equation: "F / 10.0"),
+            Channel(name: "Gearbox input torque (DSG)", unit: "Nm", equation: "bytesToInt(raw, 6, 2)"),
+        ]),
     ]
 
     @State private var copied: String?

@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.11",
-  "notes": "OpenHaldex-S3 v1.1.11 (one-board-ble): BLE startup guard no longer leaves BLE off until power removal after a normal reset",
+  "version": "v1.1.12",
+  "notes": "OpenHaldex-S3 v1.1.12 (one-board-ble): RaceChrono BLE engine channel 0xFFFF0004 (coolant/oil/intake/gearbox temps, boost, oil pressure, torque)",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

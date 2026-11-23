@@ -2,7 +2,7 @@
 """BLE coexistence test: RaceChrono telemetry while the app API is busy.
 
 Acts as RaceChrono (service 0x1FF8: filter write + CAN-data notify) asking for
-the decoded PIDs 0xFFFF0001/2/3 at 50 ms each, measures their rate for a quiet
+the decoded PIDs 0xFFFF0001-4 at 50 ms each, measures their rate for a quiet
 baseline, then again while hammering the API with large responses (CAN View,
 status, logs). Prints per-PID rates and API latency.
 
@@ -21,7 +21,7 @@ RC_DATA = "00000001-0000-1000-8000-00805f9b34fb"
 RC_FILTER = "00000002-0000-1000-8000-00805f9b34fb"
 API_RX = "4f480002-0000-4c44-8000-4f70656e4844"
 API_TX = "4f480003-0000-4c44-8000-4f70656e4844"
-PIDS = [0xFFFF0001, 0xFFFF0002, 0xFFFF0003]
+PIDS = [0xFFFF0001, 0xFFFF0002, 0xFFFF0003, 0xFFFF0004]
 PHASE_S = 10.0
 
 
