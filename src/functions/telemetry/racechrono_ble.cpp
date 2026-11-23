@@ -6,6 +6,7 @@
 
 #include "functions/config/config.h"
 #include "functions/core/state.h"
+#include "functions/net/ble_api.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -67,7 +68,14 @@ PidFilter g_filters[kFilterCapacity] = {};
 bool g_allow_all = false;
 uint16_t g_allow_all_interval_ms = kDefaultTelemetryIntervalMs;
 uint32_t g_allow_all_last_queued_ms = 0;
+// True while RaceChrono (or any client) is subscribed to CAN data. Tracked by
+// subscription rather than connection, because the iOS app can be connected at
+// the same time over the API service without wanting telemetry.
 volatile bool g_client_connected = false;
+constexpr uint8_t kMaxSubscribers = 4;
+uint16_t g_subscribers[kMaxSubscribers] = {BLE_HS_CONN_HANDLE_NONE, BLE_HS_CONN_HANDLE_NONE,
+                                           BLE_HS_CONN_HANDLE_NONE, BLE_HS_CONN_HANDLE_NONE};
+portMUX_TYPE g_subscriber_lock = portMUX_INITIALIZER_UNLOCKED;
 
 void setBleBootPhase(BleBootPhase phase, const char* message) {
   g_ble_boot_guard.magic = kBleBootGuardMagic;
@@ -192,22 +200,69 @@ void queueDecodedTelemetry() {
   queuePacket(kOpenHaldexTelemetryPid, payload, sizeof(payload));
 }
 
+// Returns the subscriber count after the change.
+uint8_t setSubscriber(uint16_t conn, bool subscribed) {
+  uint8_t count = 0;
+  portENTER_CRITICAL(&g_subscriber_lock);
+  int slot = -1;
+  for (uint8_t i = 0; i < kMaxSubscribers; i++) {
+    if (g_subscribers[i] == conn) {
+      slot = i;
+    }
+  }
+  if (subscribed && slot < 0) {
+    for (uint8_t i = 0; i < kMaxSubscribers; i++) {
+      if (g_subscribers[i] == BLE_HS_CONN_HANDLE_NONE) {
+        g_subscribers[i] = conn;
+        break;
+      }
+    }
+  } else if (!subscribed && slot >= 0) {
+    g_subscribers[slot] = BLE_HS_CONN_HANDLE_NONE;
+  }
+  for (uint8_t i = 0; i < kMaxSubscribers; i++) {
+    if (g_subscribers[i] != BLE_HS_CONN_HANDLE_NONE) {
+      count++;
+    }
+  }
+  portEXIT_CRITICAL(&g_subscriber_lock);
+  return count;
+}
+
+void subscriberChanged(uint16_t conn, bool subscribed) {
+  const bool was_connected = g_client_connected;
+  const uint8_t count = setSubscriber(conn, subscribed);
+  g_client_connected = count > 0;
+  if (subscribed && !was_connected) {
+    resetFilters();
+    LOG_INFO("racechrono", "BLE telemetry client subscribed");
+  } else if (!g_client_connected && was_connected) {
+    resetFilters();
+    LOG_INFO("racechrono", "BLE telemetry client gone");
+  }
+}
+
 class ServerCallbacks final : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* server, NimBLEConnInfo& conn_info) override {
-    (void)server;
-    (void)conn_info;
-    resetFilters();
-    g_client_connected = true;
-    LOG_INFO("racechrono", "BLE client connected");
+    LOG_INFO("racechrono", "BLE central connected handle=%u peers=%u", (unsigned)conn_info.getConnHandle(),
+             (unsigned)server->getConnectedCount());
+    // Keep advertising so a second central (RaceChrono + the app) can join.
+    NimBLEDevice::startAdvertising();
   }
 
   void onDisconnect(NimBLEServer* server, NimBLEConnInfo& conn_info, int reason) override {
     (void)server;
-    (void)conn_info;
-    g_client_connected = false;
-    resetFilters();
-    LOG_INFO("racechrono", "BLE client disconnected reason=%d", reason);
+    subscriberChanged(conn_info.getConnHandle(), false);
+    bleApiOnDisconnect(conn_info.getConnHandle());
+    LOG_INFO("racechrono", "BLE central disconnected reason=%d", reason);
     NimBLEDevice::startAdvertising();
+  }
+};
+
+class CanDataCallbacks final : public NimBLECharacteristicCallbacks {
+  void onSubscribe(NimBLECharacteristic* characteristic, NimBLEConnInfo& conn_info, uint16_t sub_value) override {
+    (void)characteristic;
+    subscriberChanged(conn_info.getConnHandle(), sub_value != 0);
   }
 };
 
@@ -239,6 +294,7 @@ class FilterCallbacks final : public NimBLECharacteristicCallbacks {
 };
 
 ServerCallbacks g_server_callbacks;
+CanDataCallbacks g_can_data_callbacks;
 FilterCallbacks g_filter_callbacks;
 
 void telemetryTask(void* arg) {
@@ -274,6 +330,8 @@ bool initializeBleServer() {
     LOG_ERROR("racechrono", "NimBLE initialization failed");
     return false;
   }
+  // Large MTU lets API responses stream in ~500-byte notifications.
+  NimBLEDevice::setMTU(517);
 
   setBleBootPhase(BleBootPhase::CreatingServer, "Creating BLE server");
   NimBLEServer* server = NimBLEDevice::createServer();
@@ -301,6 +359,11 @@ bool initializeBleServer() {
   }
   // Characteristic callbacks are never owned/deleted by NimBLE 2.x.
   filter_characteristic->setCallbacks(&g_filter_callbacks);
+  g_can_data_characteristic->setCallbacks(&g_can_data_callbacks);
+
+  // The app's JSON API shares this server. Not fatal if it fails: RaceChrono
+  // telemetry still works.
+  bleApiAttach(server);
 
   setBleBootPhase(BleBootPhase::StartingAdvertising, "Starting BLE advertising");
   NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();

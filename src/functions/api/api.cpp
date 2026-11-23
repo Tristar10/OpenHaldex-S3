@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include <ESPAsyncWebServer.h>
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
@@ -27,6 +26,18 @@ extern void wifiApplySettings();
 #define OPENHALDEX_VERSION "dev"
 #endif
 
+// Transport-neutral view of an API request: the HTTP server and the BLE API
+// bridge each provide one, so every handler below serves both.
+class ApiReq {
+ public:
+  virtual ~ApiReq() = default;
+  virtual String url() const = 0;
+  virtual bool hasParam(const char* name) const = 0;
+  virtual String param(const char* name) const = 0;
+  virtual void send(int code, const char* type, const String& body, const char* hdr_name = nullptr,
+                    const char* hdr_value = nullptr) = 0;
+};
+
 // Keep runtime mode enum valid when upgrading from older stored state.
 static void ensureDefaults() {
   if (state.mode >= openhaldex_mode_t_MAX) {
@@ -50,13 +61,13 @@ static void canviewCaptureApplySafeState() {
   modeTriggerRuntimeReset();
 }
 
-static void sendJson(AsyncWebServerRequest* request, int code, const JsonDocument& doc) {
+static void sendJson(ApiReq* request, int code, const JsonDocument& doc) {
   String out;
   serializeJson(doc, out);
   request->send(code, "application/json", out);
 }
 
-static void sendError(AsyncWebServerRequest* request, int code, const char* msg) {
+static void sendError(ApiReq* request, int code, const char* msg) {
   JsonDocument doc;
   doc["error"] = msg;
   if (request) {
@@ -65,24 +76,6 @@ static void sendError(AsyncWebServerRequest* request, int code, const char* msg)
     filelogLogError("api", String("code=") + String(code) + String(" msg=") + String(msg));
   }
   sendJson(request, code, doc);
-}
-
-static void onJsonBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total,
-                       void (*done)(AsyncWebServerRequest*, const String&)) {
-  if (index == 0) {
-    request->_tempObject = new String();
-    ((String*)request->_tempObject)->reserve(total);
-  }
-
-  String* body = (String*)request->_tempObject;
-  body->concat((const char*)data, len);
-
-  if (index + len == total) {
-    String full = *body;
-    delete body;
-    request->_tempObject = nullptr;
-    done(request, full);
-  }
 }
 
 static String frameDataHex(const canview_last_tx_t& f) {
@@ -618,7 +611,7 @@ static const uds_identity_did_t k_uds_identity_dids[] = {
 };
 
 // Aggregated status endpoint used by Home and Diagnostics pages.
-static void handleStatus(AsyncWebServerRequest* request) {
+static void handleStatus(ApiReq* request) {
   JsonDocument doc;
 
   doc["version"] = OPENHALDEX_VERSION;
@@ -803,7 +796,7 @@ static void handleStatus(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleLearnStatus(AsyncWebServerRequest* request) {
+static void handleLearnStatus(ApiReq* request) {
   JsonDocument doc;
   doc["active"] = (bool)haldexLearnActive;
   doc["progress"] = (uint8_t)haldexLearnStep;
@@ -821,7 +814,7 @@ static void handleLearnStatus(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void sendLearnResponse(AsyncWebServerRequest* request, bool ok, const char* error = nullptr) {
+static void sendLearnResponse(ApiReq* request, bool ok, const char* error = nullptr) {
   JsonDocument doc;
   doc["ok"] = ok;
   if (error) {
@@ -830,7 +823,7 @@ static void sendLearnResponse(AsyncWebServerRequest* request, bool ok, const cha
   sendJson(request, 200, doc);
 }
 
-static void handleLearnStart(AsyncWebServerRequest* request) {
+static void handleLearnStart(ApiReq* request) {
   if (haldexLearnActive) {
     JsonDocument doc;
     doc["ok"] = true;
@@ -861,12 +854,12 @@ static void handleLearnStart(AsyncWebServerRequest* request) {
   sendLearnResponse(request, (bool)haldexLearnActive, haldexLearnActive ? nullptr : "Failed to start learn task");
 }
 
-static void handleLearnCancel(AsyncWebServerRequest* request) {
+static void handleLearnCancel(ApiReq* request) {
   haldexLearnCancel = true;
   sendLearnResponse(request, true);
 }
 
-static void handleLearnClear(AsyncWebServerRequest* request) {
+static void handleLearnClear(ApiReq* request) {
   haldexLearnCancel = true;
   haldexLearnTableValid = false;
   haldexLearnStep = 0;
@@ -876,7 +869,7 @@ static void handleLearnClear(AsyncWebServerRequest* request) {
   sendLearnResponse(request, true);
 }
 
-static void handleModeJson(AsyncWebServerRequest* request, const String& body) {
+static void handleModeJson(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -905,7 +898,7 @@ static void handleModeJson(AsyncWebServerRequest* request, const String& body) {
 }
 
 // Central settings mutator. This endpoint is authoritative for runtime toggles.
-static void handleSettingsJson(AsyncWebServerRequest* request, const String& body) {
+static void handleSettingsJson(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1548,7 +1541,7 @@ static void handleSettingsJson(AsyncWebServerRequest* request, const String& bod
   sendJson(request, 200, resp);
 }
 
-static void handleCanviewCaptureGet(AsyncWebServerRequest* request) {
+static void handleCanviewCaptureGet(ApiReq* request) {
   JsonDocument doc;
   doc["active"] = canview_capture_active;
   doc["disableController"] = disableController;
@@ -1557,7 +1550,7 @@ static void handleCanviewCaptureGet(AsyncWebServerRequest* request) {
 }
 
 // Capture mode enters a safe bridge state while user records diagnostics.
-static void handleCanviewCapturePost(AsyncWebServerRequest* request, const String& body) {
+static void handleCanviewCapturePost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1603,7 +1596,7 @@ static void handleCanviewCapturePost(AsyncWebServerRequest* request, const Strin
   sendJson(request, 200, resp);
 }
 // Active in-memory map payload (what the controller is currently using).
-static void handleMapGet(AsyncWebServerRequest* request) {
+static void handleMapGet(ApiReq* request) {
   JsonDocument doc;
 
   JsonArray speedBins = doc["speedBins"].to<JsonArray>();
@@ -1628,7 +1621,7 @@ static void handleMapGet(AsyncWebServerRequest* request) {
 }
 
 // Replace active in-memory map from UI/editor payload.
-static void handleMapPost(AsyncWebServerRequest* request, const String& body) {
+static void handleMapPost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1678,7 +1671,7 @@ static void handleMapPost(AsyncWebServerRequest* request, const String& body) {
   sendJson(request, 200, resp);
 }
 
-static void handleMapsList(AsyncWebServerRequest* request) {
+static void handleMapsList(ApiReq* request) {
   JsonDocument doc;
   doc["current"] = storageGetCurrentMapPath();
   JsonArray maps = doc["maps"].to<JsonArray>();
@@ -1686,7 +1679,7 @@ static void handleMapsList(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleMapLoad(AsyncWebServerRequest* request, const String& body) {
+static void handleMapLoad(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1710,7 +1703,7 @@ static void handleMapLoad(AsyncWebServerRequest* request, const String& body) {
   sendJson(request, 200, resp);
 }
 
-static void handleMapSave(AsyncWebServerRequest* request, const String& body) {
+static void handleMapSave(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1735,7 +1728,7 @@ static void handleMapSave(AsyncWebServerRequest* request, const String& body) {
   sendJson(request, 200, resp);
 }
 
-static void handleMapDelete(AsyncWebServerRequest* request, const String& body) {
+static void handleMapDelete(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1758,7 +1751,7 @@ static void handleMapDelete(AsyncWebServerRequest* request, const String& body) 
   sendJson(request, 200, resp);
 }
 
-static void handleWifiGet(AsyncWebServerRequest* request) {
+static void handleWifiGet(ApiReq* request) {
   JsonDocument doc;
   String ssid;
   String pass;
@@ -1771,7 +1764,7 @@ static void handleWifiGet(AsyncWebServerRequest* request) {
 }
 
 // Save hotspot credentials and STA enable policy, then re-apply Wi-Fi mode.
-static void handleWifiPost(AsyncWebServerRequest* request, const String& body) {
+static void handleWifiPost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1828,7 +1821,7 @@ static void handleWifiPost(AsyncWebServerRequest* request, const String& body) {
   sendJson(request, 200, resp);
 }
 
-static void handleNetworkGet(AsyncWebServerRequest* request) {
+static void handleNetworkGet(ApiReq* request) {
   JsonDocument doc;
   const bool staConnected = (WiFi.status() == WL_CONNECTED);
   const bool apEnabled = (WiFi.getMode() & WIFI_MODE_AP) != 0;
@@ -1844,7 +1837,7 @@ static void handleNetworkGet(AsyncWebServerRequest* request) {
 }
 
 // OTA state snapshot used by OTA page polling.
-static void handleUpdateGet(AsyncWebServerRequest* request) {
+static void handleUpdateGet(ApiReq* request) {
   UpdateInfo info;
   updateGetInfo(info);
 
@@ -1868,23 +1861,23 @@ static void handleUpdateGet(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleLogsList(AsyncWebServerRequest* request) {
+static void handleLogsList(ApiReq* request) {
   JsonDocument doc;
   JsonArray files = doc["files"].to<JsonArray>();
   filelogList(files);
   sendJson(request, 200, doc);
 }
 
-static void handleLogsRead(AsyncWebServerRequest* request) {
+static void handleLogsRead(ApiReq* request) {
   if (!request->hasParam("path")) {
     sendError(request, 400, "missing path");
     return;
   }
 
-  String path = request->getParam("path")->value();
+  String path = request->param("path");
   size_t max_bytes = 32768;
   if (request->hasParam("max")) {
-    int max = request->getParam("max")->value().toInt();
+    int max = request->param("max").toInt();
     if (max > 0 && max <= 262144) {
       max_bytes = (size_t)max;
     }
@@ -1896,12 +1889,10 @@ static void handleLogsRead(AsyncWebServerRequest* request) {
     return;
   }
 
-  AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", out);
-  response->addHeader("Cache-Control", "no-store");
-  request->send(response);
+  request->send(200, "text/plain", out, "Cache-Control", "no-store");
 }
 
-static void handleLogsDelete(AsyncWebServerRequest* request, const String& body) {
+static void handleLogsDelete(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -1937,7 +1928,7 @@ static bool curvePointsStrictlyAscending(const uint16_t* bins, uint8_t count) {
   return true;
 }
 
-static void handleSpeedCurveGet(AsyncWebServerRequest* request) {
+static void handleSpeedCurveGet(ApiReq* request) {
   JsonDocument doc;
   doc["count"] = speed_curve_count;
   JsonArray points = doc["points"].to<JsonArray>();
@@ -1949,7 +1940,7 @@ static void handleSpeedCurveGet(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleSpeedCurvePost(AsyncWebServerRequest* request, const String& body) {
+static void handleSpeedCurvePost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -2001,7 +1992,7 @@ static void handleSpeedCurvePost(AsyncWebServerRequest* request, const String& b
   sendJson(request, 200, resp);
 }
 
-static void handleThrottleCurveGet(AsyncWebServerRequest* request) {
+static void handleThrottleCurveGet(ApiReq* request) {
   JsonDocument doc;
   doc["count"] = throttle_curve_count;
   JsonArray points = doc["points"].to<JsonArray>();
@@ -2013,7 +2004,7 @@ static void handleThrottleCurveGet(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleThrottleCurvePost(AsyncWebServerRequest* request, const String& body) {
+static void handleThrottleCurvePost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -2067,7 +2058,7 @@ static void handleThrottleCurvePost(AsyncWebServerRequest* request, const String
   sendJson(request, 200, resp);
 }
 
-static void handleRpmCurveGet(AsyncWebServerRequest* request) {
+static void handleRpmCurveGet(ApiReq* request) {
   JsonDocument doc;
   doc["count"] = rpm_curve_count;
   JsonArray points = doc["points"].to<JsonArray>();
@@ -2079,7 +2070,7 @@ static void handleRpmCurveGet(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleRpmCurvePost(AsyncWebServerRequest* request, const String& body) {
+static void handleRpmCurvePost(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -2131,7 +2122,7 @@ static void handleRpmCurvePost(AsyncWebServerRequest* request, const String& bod
   sendJson(request, 200, resp);
 }
 
-static void handleLogsClear(AsyncWebServerRequest* request, const String& body) {
+static void handleLogsClear(ApiReq* request, const String& body) {
   JsonDocument doc;
   if (deserializeJson(doc, body) != DeserializationError::Ok) {
     sendError(request, 400, "invalid json");
@@ -2152,20 +2143,20 @@ static void handleLogsClear(AsyncWebServerRequest* request, const String& body) 
 }
 
 // Live CAN view endpoint (decoded + raw) with server-side limits and bus filter.
-static void handleCanview(AsyncWebServerRequest* request) {
+static void handleCanview(ApiReq* request) {
   uint16_t decoded = 200;
   uint8_t raw = 20;
 
   if (request->hasParam("decoded")) {
-    decoded = (uint16_t)request->getParam("decoded")->value().toInt();
+    decoded = (uint16_t)request->param("decoded").toInt();
   }
   if (request->hasParam("raw")) {
-    raw = (uint8_t)request->getParam("raw")->value().toInt();
+    raw = (uint8_t)request->param("raw").toInt();
   }
 
   String bus = "all";
   if (request->hasParam("bus")) {
-    bus = request->getParam("bus")->value();
+    bus = request->param("bus");
     bus.toLowerCase();
   }
 
@@ -2174,10 +2165,10 @@ static void handleCanview(AsyncWebServerRequest* request) {
 }
 
 // One-shot text dump used for support/debug captures.
-static void handleCanviewDump(AsyncWebServerRequest* request) {
+static void handleCanviewDump(ApiReq* request) {
   uint32_t seconds = 30;
   if (request->hasParam("seconds")) {
-    seconds = (uint32_t)request->getParam("seconds")->value().toInt();
+    seconds = (uint32_t)request->param("seconds").toInt();
   }
   if (seconds < 1)
     seconds = 1;
@@ -2186,14 +2177,12 @@ static void handleCanviewDump(AsyncWebServerRequest* request) {
 
   String bus = "all";
   if (request->hasParam("bus")) {
-    bus = request->getParam("bus")->value();
+    bus = request->param("bus");
     bus.toLowerCase();
   }
 
   String text = canviewBuildDumpText(seconds * 1000UL, bus);
-  AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", text);
-  response->addHeader("Content-Disposition", "attachment; filename=openhaldex-can-dump.txt");
-  request->send(response);
+  request->send(200, "text/plain", text, "Content-Disposition", "attachment; filename=openhaldex-can-dump.txt");
 }
 
 static void writeUdsEnvelope(JsonDocument& doc, const diag_uds_result_t& result, bool ok) {
@@ -2205,14 +2194,14 @@ static void writeUdsEnvelope(JsonDocument& doc, const diag_uds_result_t& result,
   diagUdsWriteStatusJson(uds);
 }
 
-static void handleUdsStatus(AsyncWebServerRequest* request) {
+static void handleUdsStatus(ApiReq* request) {
   JsonDocument doc;
   JsonObject root = doc.to<JsonObject>();
   diagUdsWriteStatusJson(root);
   sendJson(request, 200, doc);
 }
 
-static void handleUdsProbe(AsyncWebServerRequest* request) {
+static void handleUdsProbe(ApiReq* request) {
   diag_uds_result_t result = {};
   const bool ok = diagUdsProbeHaldex(result, 900);
   JsonDocument doc;
@@ -2226,14 +2215,14 @@ static void handleUdsProbe(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleUdsReadDid(AsyncWebServerRequest* request) {
+static void handleUdsReadDid(ApiReq* request) {
   if (!request->hasParam("did")) {
     sendError(request, 400, "did query parameter required");
     return;
   }
 
   uint32_t parsed = 0;
-  if (!parseHexU32(request->getParam("did")->value(), parsed) || parsed > 0xFFFF) {
+  if (!parseHexU32(request->param("did"), parsed) || parsed > 0xFFFF) {
     sendError(request, 400, "invalid did");
     return;
   }
@@ -2254,7 +2243,7 @@ static void handleUdsReadDid(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleUdsReadDidJson(AsyncWebServerRequest* request, const String& body) {
+static void handleUdsReadDidJson(ApiReq* request, const String& body) {
   JsonDocument in;
   DeserializationError err = deserializeJson(in, body);
   if (err) {
@@ -2283,7 +2272,7 @@ static void handleUdsReadDidJson(AsyncWebServerRequest* request, const String& b
   sendJson(request, 200, doc);
 }
 
-static void handleUdsIdentity(AsyncWebServerRequest* request) {
+static void handleUdsIdentity(ApiReq* request) {
   JsonDocument doc;
   doc["ok"] = false;
   doc["haldexGeneration"] = haldexGeneration;
@@ -2351,11 +2340,11 @@ static void handleUdsIdentity(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleUdsDtc(AsyncWebServerRequest* request) {
+static void handleUdsDtc(ApiReq* request) {
   uint8_t status_mask = 0xAF;
   if (request->hasParam("statusMask")) {
     uint32_t parsed = 0;
-    if (!parseHexU32(request->getParam("statusMask")->value(), parsed) || parsed > 0xFF) {
+    if (!parseHexU32(request->param("statusMask"), parsed) || parsed > 0xFF) {
       sendError(request, 400, "invalid statusMask");
       return;
     }
@@ -2372,7 +2361,7 @@ static void handleUdsDtc(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleMeasuredValues(AsyncWebServerRequest* request) {
+static void handleMeasuredValues(ApiReq* request) {
   static const uint8_t k_max_items = 16;
   uint32_t ids[k_max_items] = {};
   uint8_t id_count = 0;
@@ -2384,9 +2373,9 @@ static void handleMeasuredValues(AsyncWebServerRequest* request) {
   if (haldexGeneration == 5) {
     String raw_ids = "";
     if (request->hasParam("dids")) {
-      raw_ids = request->getParam("dids")->value();
+      raw_ids = request->param("dids");
     } else if (request->hasParam("ids")) {
-      raw_ids = request->getParam("ids")->value();
+      raw_ids = request->param("ids");
     }
 
     if (raw_ids.length() == 0) {
@@ -2454,9 +2443,9 @@ static void handleMeasuredValues(AsyncWebServerRequest* request) {
   if (haldexGeneration == 2 || haldexGeneration == 4) {
     String raw_ids = "01,02,03,04";
     if (request->hasParam("localIds")) {
-      raw_ids = request->getParam("localIds")->value();
+      raw_ids = request->param("localIds");
     } else if (request->hasParam("ids")) {
-      raw_ids = request->getParam("ids")->value();
+      raw_ids = request->param("ids");
     }
 
     if (!parseHexList(raw_ids, 0xFF, ids, id_count, k_max_items)) {
@@ -2519,11 +2508,11 @@ static void handleMeasuredValues(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
-static void handleUdsClearDtc(AsyncWebServerRequest* request) {
+static void handleUdsClearDtc(ApiReq* request) {
   uint32_t group_of_dtc = 0xFFFFFFUL;
   if (request->hasParam("groupOfDTC")) {
     uint32_t parsed = 0;
-    if (!parseHexU32(request->getParam("groupOfDTC")->value(), parsed) || parsed > 0xFFFFFFUL) {
+    if (!parseHexU32(request->param("groupOfDTC"), parsed) || parsed > 0xFFFFFFUL) {
       sendError(request, 400, "invalid groupOfDTC");
       return;
     }
@@ -2565,134 +2554,255 @@ static void handleUdsClearDtc(AsyncWebServerRequest* request) {
   sendJson(request, 200, doc);
 }
 
+static void handleUpdateCheck(ApiReq* request) {
+  updateCheckNow();
+  handleUpdateGet(request);
+}
+
+static void handleUpdateInstall(ApiReq* request) {
+  bool started = updateInstallStart();
+  JsonDocument doc;
+  doc["started"] = started;
+  sendJson(request, started ? 200 : 409, doc);
+}
+
+// Single route table shared by every transport (HTTP and the BLE API bridge),
+// so the iOS app reaches exactly the same handlers the web UI does.
+using ApiGetFn = void (*)(ApiReq*);
+using ApiBodyFn = void (*)(ApiReq*, const String&);
+struct ApiRoute {
+  const char* path;
+  bool post;
+  ApiGetFn fn;
+  ApiBodyFn body_fn;
+};
+
+static const ApiRoute k_api_routes[] = {
+  {"/api/status", false, handleStatus, nullptr},
+  {"/api/uds/status", false, handleUdsStatus, nullptr},
+  {"/api/uds/probe", true, handleUdsProbe, nullptr},
+  {"/api/uds/read", false, handleUdsReadDid, nullptr},
+  {"/api/uds/read", true, nullptr, handleUdsReadDidJson},
+  {"/api/uds/identity", true, handleUdsIdentity, nullptr},
+  {"/api/uds/dtc", false, handleUdsDtc, nullptr},
+  {"/api/uds/dtc", true, handleUdsDtc, nullptr},
+  {"/api/diag/measured", false, handleMeasuredValues, nullptr},
+  {"/api/diag/measured", true, handleMeasuredValues, nullptr},
+  {"/api/uds/measured", false, handleMeasuredValues, nullptr},
+  {"/api/uds/measured", true, handleMeasuredValues, nullptr},
+  {"/api/uds/clear-dtc", true, handleUdsClearDtc, nullptr},
+  {"/api/learn/status", false, handleLearnStatus, nullptr},
+  {"/api/learn/start", true, handleLearnStart, nullptr},
+  {"/api/learn/cancel", true, handleLearnCancel, nullptr},
+  {"/api/learn/clear", true, handleLearnClear, nullptr},
+  {"/api/mode", true, nullptr, handleModeJson},
+  {"/api/settings", true, nullptr, handleSettingsJson},
+  {"/api/map", false, handleMapGet, nullptr},
+  {"/api/map", true, nullptr, handleMapPost},
+  {"/api/curve/speed", false, handleSpeedCurveGet, nullptr},
+  {"/api/curve/speed", true, nullptr, handleSpeedCurvePost},
+  {"/api/curve/throttle", false, handleThrottleCurveGet, nullptr},
+  {"/api/curve/throttle", true, nullptr, handleThrottleCurvePost},
+  {"/api/curve/rpm", false, handleRpmCurveGet, nullptr},
+  {"/api/curve/rpm", true, nullptr, handleRpmCurvePost},
+  {"/api/maps", false, handleMapsList, nullptr},
+  {"/api/maps/load", true, nullptr, handleMapLoad},
+  {"/api/maps/save", true, nullptr, handleMapSave},
+  {"/api/maps/delete", true, nullptr, handleMapDelete},
+  {"/api/wifi", false, handleWifiGet, nullptr},
+  {"/api/wifi", true, nullptr, handleWifiPost},
+  {"/api/network", false, handleNetworkGet, nullptr},
+  {"/api/update", false, handleUpdateGet, nullptr},
+  {"/api/update/check", true, handleUpdateCheck, nullptr},
+  {"/api/update/install", true, handleUpdateInstall, nullptr},
+  {"/api/canview/dump", false, handleCanviewDump, nullptr},
+  {"/api/canview", false, handleCanview, nullptr},
+  {"/api/logs/read", false, handleLogsRead, nullptr},
+  {"/api/logs", false, handleLogsList, nullptr},
+  {"/api/logs/delete", true, nullptr, handleLogsDelete},
+  {"/api/logs/clear", true, nullptr, handleLogsClear},
+  {"/api/canview/capture", false, handleCanviewCaptureGet, nullptr},
+  {"/api/canview/capture", true, nullptr, handleCanviewCapturePost},
+};
+
+// Handlers touch shared static state (CAN View capture, UDS session, maps), so
+// serialize them across transports. Recursive in case a handler re-enters.
+static SemaphoreHandle_t g_api_lock = nullptr;
+
+static void apiLockInit() {
+  if (!g_api_lock) {
+    g_api_lock = xSemaphoreCreateRecursiveMutex();
+  }
+}
+
+static void runRoute(const ApiRoute& route, ApiReq* req, const String& body) {
+  apiLockInit();
+  xSemaphoreTakeRecursive(g_api_lock, portMAX_DELAY);
+  if (route.body_fn) {
+    route.body_fn(req, body);
+  } else if (route.fn) {
+    route.fn(req);
+  }
+  xSemaphoreGiveRecursive(g_api_lock);
+}
+
+// ---- Buffered transport (BLE API bridge) ----
+
+static int hexNibble(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+static String urlDecode(const String& in) {
+  String out;
+  out.reserve(in.length());
+  for (size_t i = 0; i < in.length(); i++) {
+    const char c = in[i];
+    if (c == '+') {
+      out += ' ';
+    } else if (c == '%' && i + 2 < in.length() && hexNibble(in[i + 1]) >= 0 && hexNibble(in[i + 2]) >= 0) {
+      out += (char)((hexNibble(in[i + 1]) << 4) | hexNibble(in[i + 2]));
+      i += 2;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+class BufferApiReq final : public ApiReq {
+ public:
+  BufferApiReq(const String& path, const String& query, ApiResponse& out) : path_(path), query_(query), out_(out) {}
+
+  String url() const override { return path_; }
+
+  bool hasParam(const char* name) const override {
+    String value;
+    return findParam(name, value);
+  }
+
+  String param(const char* name) const override {
+    String value;
+    findParam(name, value);
+    return value;
+  }
+
+  void send(int code, const char* type, const String& body, const char* hdr_name, const char* hdr_value) override {
+    (void)hdr_name;
+    (void)hdr_value;
+    out_.code = code;
+    out_.type = type ? type : "";
+    out_.body = body;
+  }
+
+ private:
+  bool findParam(const char* name, String& value) const {
+    const size_t name_len = strlen(name);
+    int start = 0;
+    while (start <= (int)query_.length()) {
+      int end = query_.indexOf('&', start);
+      if (end < 0) end = query_.length();
+      const int eq = query_.indexOf('=', start);
+      const int key_end = (eq >= 0 && eq < end) ? eq : end;
+      if ((size_t)(key_end - start) == name_len && strncmp(query_.c_str() + start, name, name_len) == 0) {
+        value = (eq >= 0 && eq < end) ? urlDecode(query_.substring(eq + 1, end)) : String();
+        return true;
+      }
+      start = end + 1;
+    }
+    return false;
+  }
+
+  String path_;
+  String query_;
+  ApiResponse& out_;
+};
+
+bool apiDispatch(const String& method, const String& path, const String& query, const String& body,
+                 ApiResponse& out) {
+  ensureDefaults();
+  const bool post = method.equalsIgnoreCase("POST");
+  for (const ApiRoute& route : k_api_routes) {
+    if (route.post == post && path.equals(route.path)) {
+      BufferApiReq req(path, query, out);
+      runRoute(route, &req, body);
+      return true;
+    }
+  }
+  out.code = 404;
+  out.type = "application/json";
+  out.body = "{\"error\":\"not found\"}";
+  return false;
+}
+
+// ---- HTTP transport ----
+
+#if OH_ENABLE_WEB
+class WebApiReq final : public ApiReq {
+ public:
+  explicit WebApiReq(AsyncWebServerRequest* request) : r_(request) {}
+
+  String url() const override { return r_->url(); }
+  bool hasParam(const char* name) const override { return r_->hasParam(name); }
+  String param(const char* name) const override {
+    const AsyncWebParameter* p = r_->getParam(name);
+    return p ? p->value() : String();
+  }
+
+  void send(int code, const char* type, const String& body, const char* hdr_name, const char* hdr_value) override {
+    if (hdr_name && hdr_value) {
+      AsyncWebServerResponse* response = r_->beginResponse(code, type, body);
+      response->addHeader(hdr_name, hdr_value);
+      r_->send(response);
+    } else {
+      r_->send(code, type, body);
+    }
+  }
+
+ private:
+  AsyncWebServerRequest* r_;
+};
+
+static void onWebBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total,
+                      const ApiRoute* route) {
+  if (index == 0) {
+    request->_tempObject = new String();
+    ((String*)request->_tempObject)->reserve(total);
+  }
+
+  String* body = (String*)request->_tempObject;
+  body->concat((const char*)data, len);
+
+  if (index + len == total) {
+    String full = *body;
+    delete body;
+    request->_tempObject = nullptr;
+    WebApiReq req(request);
+    runRoute(*route, &req, full);
+  }
+}
+
 void setupApi(AsyncWebServer& server) {
   ensureDefaults();
+  apiLockInit();
 
-  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest* request) { handleStatus(request); });
-  server.on("/api/uds/status", HTTP_GET, [](AsyncWebServerRequest* request) { handleUdsStatus(request); });
-  server.on("/api/uds/probe", HTTP_POST, [](AsyncWebServerRequest* request) { handleUdsProbe(request); });
-  server.on("/api/uds/read", HTTP_GET, [](AsyncWebServerRequest* request) { handleUdsReadDid(request); });
-  server.on(
-    "/api/uds/read", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleUdsReadDidJson);
-    });
-  server.on("/api/uds/identity", HTTP_POST, [](AsyncWebServerRequest* request) { handleUdsIdentity(request); });
-  server.on("/api/uds/dtc", HTTP_GET, [](AsyncWebServerRequest* request) { handleUdsDtc(request); });
-  server.on("/api/uds/dtc", HTTP_POST, [](AsyncWebServerRequest* request) { handleUdsDtc(request); });
-  server.on("/api/diag/measured", HTTP_GET, [](AsyncWebServerRequest* request) { handleMeasuredValues(request); });
-  server.on("/api/diag/measured", HTTP_POST, [](AsyncWebServerRequest* request) { handleMeasuredValues(request); });
-  server.on("/api/uds/measured", HTTP_GET, [](AsyncWebServerRequest* request) { handleMeasuredValues(request); });
-  server.on("/api/uds/measured", HTTP_POST, [](AsyncWebServerRequest* request) { handleMeasuredValues(request); });
-  server.on("/api/uds/clear-dtc", HTTP_POST, [](AsyncWebServerRequest* request) { handleUdsClearDtc(request); });
-  server.on("/api/learn/status", HTTP_GET, [](AsyncWebServerRequest* request) { handleLearnStatus(request); });
-  server.on("/api/learn/start", HTTP_POST, [](AsyncWebServerRequest* request) { handleLearnStart(request); });
-  server.on("/api/learn/cancel", HTTP_POST, [](AsyncWebServerRequest* request) { handleLearnCancel(request); });
-  server.on("/api/learn/clear", HTTP_POST, [](AsyncWebServerRequest* request) { handleLearnClear(request); });
-
-  server.on(
-    "/api/mode", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleModeJson);
-    });
-
-  server.on(
-    "/api/settings", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleSettingsJson);
-    });
-
-  server.on("/api/map", HTTP_GET, [](AsyncWebServerRequest* request) { handleMapGet(request); });
-  server.on("/api/curve/speed", HTTP_GET, [](AsyncWebServerRequest* request) { handleSpeedCurveGet(request); });
-  server.on("/api/curve/throttle", HTTP_GET, [](AsyncWebServerRequest* request) { handleThrottleCurveGet(request); });
-  server.on("/api/curve/rpm", HTTP_GET, [](AsyncWebServerRequest* request) { handleRpmCurveGet(request); });
-
-  server.on(
-    "/api/map", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleMapPost);
-    });
-
-  server.on(
-    "/api/curve/speed", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleSpeedCurvePost);
-    });
-
-  server.on(
-    "/api/curve/throttle", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleThrottleCurvePost);
-    });
-
-  server.on(
-    "/api/curve/rpm", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleRpmCurvePost);
-    });
-
-  server.on("/api/maps", HTTP_GET, [](AsyncWebServerRequest* request) { handleMapsList(request); });
-
-  server.on(
-    "/api/maps/load", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleMapLoad);
-    });
-
-  server.on(
-    "/api/maps/save", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleMapSave);
-    });
-
-  server.on(
-    "/api/maps/delete", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleMapDelete);
-    });
-
-  server.on("/api/wifi", HTTP_GET, [](AsyncWebServerRequest* request) { handleWifiGet(request); });
-
-  server.on(
-    "/api/wifi", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleWifiPost);
-    });
-
-  server.on("/api/network", HTTP_GET, [](AsyncWebServerRequest* request) { handleNetworkGet(request); });
-
-  server.on("/api/update", HTTP_GET, [](AsyncWebServerRequest* request) { handleUpdateGet(request); });
-
-  server.on("/api/update/check", HTTP_POST, [](AsyncWebServerRequest* request) {
-    updateCheckNow();
-    handleUpdateGet(request);
-  });
-
-  server.on("/api/update/install", HTTP_POST, [](AsyncWebServerRequest* request) {
-    bool started = updateInstallStart();
-    JsonDocument doc;
-    doc["started"] = started;
-    sendJson(request, started ? 200 : 409, doc);
-  });
-
-  server.on("/api/canview/dump", HTTP_GET, [](AsyncWebServerRequest* request) { handleCanviewDump(request); });
-  server.on("/api/canview", HTTP_GET, [](AsyncWebServerRequest* request) { handleCanview(request); });
-  server.on("/api/logs/read", HTTP_GET, [](AsyncWebServerRequest* request) { handleLogsRead(request); });
-  server.on("/api/logs", HTTP_GET, [](AsyncWebServerRequest* request) { handleLogsList(request); });
-  server.on(
-    "/api/logs/delete", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleLogsDelete);
-    });
-  server.on(
-    "/api/logs/clear", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleLogsClear);
-    });
-  server.on("/api/canview/capture", HTTP_GET, [](AsyncWebServerRequest* request) { handleCanviewCaptureGet(request); });
-  server.on(
-    "/api/canview/capture", HTTP_POST, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
-    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-      onJsonBody(request, data, len, index, total, handleCanviewCapturePost);
-    });
+  for (const ApiRoute& route : k_api_routes) {
+    const ApiRoute* r = &route;
+    const WebRequestMethod method = route.post ? HTTP_POST : HTTP_GET;
+    if (route.body_fn) {
+      server.on(
+        route.path, method, [](AsyncWebServerRequest* request) { (void)request; }, nullptr,
+        [r](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+          onWebBody(request, data, len, index, total, r);
+        });
+    } else {
+      server.on(route.path, method, [r](AsyncWebServerRequest* request) {
+        WebApiReq req(request);
+        runRoute(*r, &req, String());
+      });
+    }
+  }
 }
+#endif  // OH_ENABLE_WEB
