@@ -247,7 +247,14 @@ bool matches(const Preset& p) {
 void presetsInit() {
   lock();
   loadCatalog();
+  // Applying a preset swaps the map in RAM only (no flash write while
+  // driving), so after a restart the stored map is whatever was loaded before.
+  // Re-apply the active preset's map when the restored mode still matches it.
+  const Preset* p = activePresetId != kPresetNone ? findById(activePresetId) : nullptr;
+  const bool restore = p && p->map && state.mode == (openhaldex_mode_t)p->info.mode;
+  if (restore) mapTableApply(*p->map);
   unlock();
+  if (restore) LOG_INFO("presets", "restored map of active preset %u", (unsigned)activePresetId);
 }
 
 uint16_t presetsCatalogVersion() { return g_version; }

@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.13",
-  "notes": "OpenHaldex-S3 v1.1.13 (one-board-ble): MMI link bench target override (send to a chosen IP instead of the hotspot gateway)",
+  "version": "v1.1.15",
+  "notes": "OpenHaldex-S3 v1.1.15 (one-board-ble): MMI link-up fix; active preset map restored after restart",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

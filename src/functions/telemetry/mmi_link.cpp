@@ -317,7 +317,9 @@ void mmiLinkTickImpl() {
   g_stats.staConnected = true;
   g_stats.gateway = (uint32_t)gateway;
   g_stats.sent = sent;
-  const bool linked = g_last_ack_ms != 0 && (now - g_last_ack_ms) < kLinkTimeoutMs;
+  // Signed: readIncoming() stamps acks with a later millis() than `now`, so
+  // an ack from this very tick would otherwise wrap to ~49 days and never link.
+  const bool linked = g_last_ack_ms != 0 && (int32_t)(now - g_last_ack_ms) < (int32_t)kLinkTimeoutMs;
   g_stats.linked = linked;
   portEXIT_CRITICAL(&g_stats_mux);
   seq++;
