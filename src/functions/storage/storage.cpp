@@ -159,7 +159,7 @@ static int split_tabs(const String& line, String parts[], int max_parts) {
   return count;
 }
 
-static bool parse_map_txt(const String& text) {
+static bool parse_map_txt_into(const String& text, MapTable& out) {
   // Parse tab-delimited map format: first row is speed bins, subsequent rows are throttle bins + lock percentages
   String parts[32];
   String line;
@@ -175,7 +175,7 @@ static bool parse_map_txt(const String& text) {
     return false;
 
   for (uint8_t i = 0; i < MAP_SPEED_BINS; i++) {
-    map_speed_bins[i] = (uint16_t)parse_token_int(parts[i + 2]);
+    out.speedBins[i] = (uint16_t)parse_token_int(parts[i + 2]);
   }
 
   uint8_t row = 0;
@@ -201,7 +201,7 @@ static bool parse_map_txt(const String& text) {
     if (throttle == 0 && throttle_id.length() == 0) {
       throttle = parse_token_int(parts[1]);
     }
-    map_throttle_bins[row] = (uint8_t)throttle;
+    out.throttleBins[row] = (uint8_t)throttle;
 
     for (uint8_t s = 0; s < MAP_SPEED_BINS; s++) {
       int v = parse_token_int(parts[s + 2]);
@@ -209,7 +209,7 @@ static bool parse_map_txt(const String& text) {
         v = 0;
       if (v > 100)
         v = 100;
-      map_lock_table[row][s] = (uint8_t)v;
+      out.lock[row][s] = (uint8_t)v;
     }
 
     row++;
@@ -218,7 +218,7 @@ static bool parse_map_txt(const String& text) {
   return (row == MAP_THROTTLE_BINS);
 }
 
-static bool load_map_from_json_file(const char* path) {
+static bool load_map_from_json_file_into(const char* path, MapTable& out) {
   if (!fs_ready)
     return false;
   if (!LittleFS.exists(path))
@@ -246,11 +246,11 @@ static bool load_map_from_json_file(const char* path) {
   }
 
   for (uint8_t i = 0; i < MAP_SPEED_BINS; i++) {
-    map_speed_bins[i] = (uint16_t)(speedBins[i] | 0);
+    out.speedBins[i] = (uint16_t)(speedBins[i] | 0);
   }
 
   for (uint8_t i = 0; i < MAP_THROTTLE_BINS; i++) {
-    map_throttle_bins[i] = (uint8_t)(throttleBins[i] | 0);
+    out.throttleBins[i] = (uint8_t)(throttleBins[i] | 0);
   }
 
   for (uint8_t t = 0; t < MAP_THROTTLE_BINS; t++) {
@@ -264,10 +264,21 @@ static bool load_map_from_json_file(const char* path) {
         v = 0;
       if (v > 100)
         v = 100;
-      map_lock_table[t][s] = (uint8_t)v;
+      out.lock[t][s] = (uint8_t)v;
     }
   }
 
+  return true;
+}
+
+// Parse fully first, then swap in atomically: a bad file never leaves the
+// live table half-written.
+static bool load_map_from_json_file(const char* path) {
+  MapTable m;
+  if (!load_map_from_json_file_into(path, m)) {
+    return false;
+  }
+  mapTableApply(m);
   return true;
 }
 
@@ -280,22 +291,24 @@ static bool save_map_to_json_file(const char* path) {
   if (!f)
     return false;
 
+  MapTable m;
+  mapTableSnapshot(m);
   JsonDocument doc;
   JsonArray speedBins = doc["speedBins"].to<JsonArray>();
   for (uint8_t i = 0; i < MAP_SPEED_BINS; i++) {
-    speedBins.add(map_speed_bins[i]);
+    speedBins.add(m.speedBins[i]);
   }
 
   JsonArray throttleBins = doc["throttleBins"].to<JsonArray>();
   for (uint8_t i = 0; i < MAP_THROTTLE_BINS; i++) {
-    throttleBins.add(map_throttle_bins[i]);
+    throttleBins.add(m.throttleBins[i]);
   }
 
   JsonArray lockTable = doc["lockTable"].to<JsonArray>();
   for (uint8_t t = 0; t < MAP_THROTTLE_BINS; t++) {
     JsonArray row = lockTable.add<JsonArray>();
     for (uint8_t s = 0; s < MAP_SPEED_BINS; s++) {
-      row.add(map_lock_table[t][s]);
+      row.add(m.lock[t][s]);
     }
   }
 
@@ -304,7 +317,7 @@ static bool save_map_to_json_file(const char* path) {
   return true;
 }
 
-static bool load_map_from_txt_file(const char* path) {
+static bool load_map_from_txt_file_into(const char* path, MapTable& out) {
   if (!fs_ready)
     return false;
   if (!LittleFS.exists(path))
@@ -317,7 +330,34 @@ static bool load_map_from_txt_file(const char* path) {
   String body = f.readString();
   f.close();
 
-  return parse_map_txt(body);
+  return parse_map_txt_into(body, out);
+}
+
+static bool load_map_from_txt_file(const char* path) {
+  MapTable m;
+  if (!load_map_from_txt_file_into(path, m)) {
+    return false;
+  }
+  mapTableApply(m);
+  return true;
+}
+
+// Reads a map file into `out` without touching the live table (used to preload
+// preset maps). Accepts /maps/x.txt, x.txt, or a .json path.
+bool storageReadMapFile(const String& path, MapTable& out) {
+  if (!fs_ready || path.length() == 0 || path.indexOf("..") >= 0) {
+    return false;
+  }
+  String local = path.startsWith("/") ? path : "/" + path;
+  if (local.endsWith(".json")) {
+    return load_map_from_json_file_into(local.c_str(), out);
+  }
+  if (!LittleFS.exists(local)) {
+    String fallback = String(MAP_DIR) + local;
+    fallback.replace("//", "/");
+    local = fallback;
+  }
+  return load_map_from_txt_file_into(local.c_str(), out);
 }
 
 static String sanitize_map_name(const String& name) {

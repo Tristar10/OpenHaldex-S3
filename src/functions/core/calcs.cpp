@@ -133,20 +133,24 @@ static float get_map_lock_target(openhaldex_mode_t mode) {
     speed = 0;
   }
 
+  // Consistent copy: a preset apply or map save may swap the table at any time.
+  MapTable m;
+  mapTableSnapshot(m);
+
   uint8_t t0 = 0;
   uint8_t t1 = 0;
   float t_ratio = 0;
 
-  if (throttle >= map_throttle_bins[MAP_THROTTLE_BINS - 1]) {
+  if (throttle >= m.throttleBins[MAP_THROTTLE_BINS - 1]) {
     t0 = MAP_THROTTLE_BINS - 1;
     t1 = t0;
   } else {
     for (uint8_t i = 0; i < MAP_THROTTLE_BINS - 1; i++) {
-      if (throttle <= map_throttle_bins[i + 1]) {
+      if (throttle <= m.throttleBins[i + 1]) {
         t0 = i;
         t1 = i + 1;
-        float denom = (float)map_throttle_bins[t1] - (float)map_throttle_bins[t0];
-        t_ratio = (denom > 0) ? ((throttle - map_throttle_bins[t0]) / denom) : 0;
+        float denom = (float)m.throttleBins[t1] - (float)m.throttleBins[t0];
+        t_ratio = (denom > 0) ? ((throttle - m.throttleBins[t0]) / denom) : 0;
         break;
       }
     }
@@ -156,25 +160,25 @@ static float get_map_lock_target(openhaldex_mode_t mode) {
   uint8_t s1 = 0;
   float s_ratio = 0;
 
-  if (speed >= map_speed_bins[MAP_SPEED_BINS - 1]) {
+  if (speed >= m.speedBins[MAP_SPEED_BINS - 1]) {
     s0 = MAP_SPEED_BINS - 1;
     s1 = s0;
   } else {
     for (uint8_t i = 0; i < MAP_SPEED_BINS - 1; i++) {
-      if (speed <= map_speed_bins[i + 1]) {
+      if (speed <= m.speedBins[i + 1]) {
         s0 = i;
         s1 = i + 1;
-        float denom = (float)map_speed_bins[s1] - (float)map_speed_bins[s0];
-        s_ratio = (denom > 0) ? ((speed - map_speed_bins[s0]) / denom) : 0;
+        float denom = (float)m.speedBins[s1] - (float)m.speedBins[s0];
+        s_ratio = (denom > 0) ? ((speed - m.speedBins[s0]) / denom) : 0;
         break;
       }
     }
   }
 
-  float v00 = map_lock_table[t0][s0];
-  float v01 = map_lock_table[t0][s1];
-  float v10 = map_lock_table[t1][s0];
-  float v11 = map_lock_table[t1][s1];
+  float v00 = m.lock[t0][s0];
+  float v01 = m.lock[t0][s1];
+  float v10 = m.lock[t1][s0];
+  float v11 = m.lock[t1][s1];
 
   float v0 = v00 + ((v01 - v00) * s_ratio);
   float v1 = v10 + ((v11 - v10) * s_ratio);

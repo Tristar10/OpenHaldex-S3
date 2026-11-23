@@ -1598,23 +1598,25 @@ static void handleCanviewCapturePost(ApiReq* request, const String& body) {
 }
 // Active in-memory map payload (what the controller is currently using).
 static void handleMapGet(ApiReq* request) {
+  MapTable m;
+  mapTableSnapshot(m);
   JsonDocument doc;
 
   JsonArray speedBins = doc["speedBins"].to<JsonArray>();
   for (uint8_t i = 0; i < MAP_SPEED_BINS; i++) {
-    speedBins.add(map_speed_bins[i]);
+    speedBins.add(m.speedBins[i]);
   }
 
   JsonArray throttleBins = doc["throttleBins"].to<JsonArray>();
   for (uint8_t i = 0; i < MAP_THROTTLE_BINS; i++) {
-    throttleBins.add(map_throttle_bins[i]);
+    throttleBins.add(m.throttleBins[i]);
   }
 
   JsonArray lockTable = doc["lockTable"].to<JsonArray>();
   for (uint8_t t = 0; t < MAP_THROTTLE_BINS; t++) {
     JsonArray row = lockTable.add<JsonArray>();
     for (uint8_t s = 0; s < MAP_SPEED_BINS; s++) {
-      row.add(map_lock_table[t][s]);
+      row.add(m.lock[t][s]);
     }
   }
 
@@ -1639,12 +1641,14 @@ static void handleMapPost(ApiReq* request, const String& body) {
     return;
   }
 
+  // Build the whole table first; only a fully valid map is swapped in.
+  MapTable m;
   for (uint8_t i = 0; i < MAP_SPEED_BINS; i++) {
-    map_speed_bins[i] = (uint16_t)(speedBins[i] | 0);
+    m.speedBins[i] = (uint16_t)(speedBins[i] | 0);
   }
 
   for (uint8_t i = 0; i < MAP_THROTTLE_BINS; i++) {
-    map_throttle_bins[i] = (uint8_t)(throttleBins[i] | 0);
+    m.throttleBins[i] = (uint8_t)(throttleBins[i] | 0);
   }
 
   for (uint8_t t = 0; t < MAP_THROTTLE_BINS; t++) {
@@ -1660,9 +1664,10 @@ static void handleMapPost(ApiReq* request, const String& body) {
         v = 0;
       if (v > 100)
         v = 100;
-      map_lock_table[t][s] = (uint8_t)v;
+      m.lock[t][s] = (uint8_t)v;
     }
   }
+  mapTableApply(m);
 
   storageMarkDirty();
   filelogLogEvent("map", "active map updated");

@@ -232,6 +232,18 @@ extern uint16_t map_speed_bins[MAP_SPEED_BINS];
 extern uint8_t map_throttle_bins[MAP_THROTTLE_BINS];
 extern uint8_t map_lock_table[MAP_THROTTLE_BINS][MAP_SPEED_BINS];
 
+// A complete map (bins + lock table) as one value, so it can be swapped in or
+// read out atomically. The live tables above are only written through
+// mapTableApply(); control code reads them through mapTableSnapshot().
+struct MapTable {
+  uint16_t speedBins[MAP_SPEED_BINS];
+  uint8_t throttleBins[MAP_THROTTLE_BINS];
+  uint8_t lock[MAP_THROTTLE_BINS][MAP_SPEED_BINS];
+};
+void mapTableSnapshot(MapTable& out);
+void mapTableApply(const MapTable& in);
+bool mapTableEquals(const MapTable& a, const MapTable& b);
+
 // Debug stack markers
 extern uint32_t stackCHS;
 extern uint32_t stackHDX;

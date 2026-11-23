@@ -13,7 +13,9 @@ void storageMarkDirty();
 bool storageIsDirty();
 void storageClearDirty();
 
+struct MapTable;
 bool storageLoadMapPath(const String& path);
+bool storageReadMapFile(const String& path, MapTable& out);
 bool storageSaveMapName(const String& name, String& outPath);
 bool storageDeleteMapPath(const String& path);
 void storageListMaps(JsonArray out);

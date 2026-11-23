@@ -158,6 +158,32 @@ uint8_t map_lock_table[MAP_THROTTLE_BINS][MAP_SPEED_BINS] = {
   {0, 5, 10, 15, 15, 10, 5, 0, 0},     {5, 10, 20, 25, 25, 20, 15, 10, 5}, {10, 20, 30, 40, 40, 30, 25, 20, 15},
   {20, 30, 45, 60, 60, 50, 40, 30, 20}};
 
+// ~80 bytes; copying under a spinlock takes microseconds, so neither the CAN
+// control path nor a preset apply ever sees a half-written table.
+static portMUX_TYPE g_map_mux = portMUX_INITIALIZER_UNLOCKED;
+
+void mapTableSnapshot(MapTable& out) {
+  portENTER_CRITICAL(&g_map_mux);
+  memcpy(out.speedBins, map_speed_bins, sizeof(out.speedBins));
+  memcpy(out.throttleBins, map_throttle_bins, sizeof(out.throttleBins));
+  memcpy(out.lock, map_lock_table, sizeof(out.lock));
+  portEXIT_CRITICAL(&g_map_mux);
+}
+
+void mapTableApply(const MapTable& in) {
+  portENTER_CRITICAL(&g_map_mux);
+  memcpy(map_speed_bins, in.speedBins, sizeof(map_speed_bins));
+  memcpy(map_throttle_bins, in.throttleBins, sizeof(map_throttle_bins));
+  memcpy(map_lock_table, in.lock, sizeof(map_lock_table));
+  portEXIT_CRITICAL(&g_map_mux);
+}
+
+bool mapTableEquals(const MapTable& a, const MapTable& b) {
+  return memcmp(a.speedBins, b.speedBins, sizeof(a.speedBins)) == 0 &&
+         memcmp(a.throttleBins, b.throttleBins, sizeof(a.throttleBins)) == 0 &&
+         memcmp(a.lock, b.lock, sizeof(a.lock)) == 0;
+}
+
 static SemaphoreHandle_t mappedInputMutexHandle() {
   if (!mapped_input_mutex) {
     mapped_input_mutex = xSemaphoreCreateMutex();
