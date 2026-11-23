@@ -4,7 +4,7 @@ import SwiftUI
 struct ModesView: View {
     var body: some View {
         NavigationStack {
-            List {
+            ThemedList {
                 Section("Presets") {
                     NavigationLink("Presets") { PresetsEditor() }
                 }
@@ -51,7 +51,7 @@ struct CurveEditor: View {
     @State private var error: String?
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 ForEach($points) { $p in
                     HStack {
@@ -185,7 +185,7 @@ struct MapEditor: View {
     @State private var loading = true
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 ScrollView(.horizontal) { grid.padding(.vertical, 4) }
                 Text("Rows: throttle %. Columns: speed km/h. Tap a cell to edit.")
@@ -199,7 +199,7 @@ struct MapEditor: View {
                     let path = maps[i]["path"].string ?? maps[i].string ?? ""
                     HStack {
                         Text(maps[i]["name"].string ?? (path as NSString).lastPathComponent)
-                        if path == current { Image(systemName: "checkmark").foregroundStyle(.orange) }
+                        if path == current { Image(systemName: "checkmark").foregroundStyle(Theme.cyan) }
                         Spacer()
                         Button("Load") { loadMap(path) }.buttonStyle(.borderless)
                     }
@@ -252,7 +252,7 @@ struct MapEditor: View {
                         Text("\(v)")
                             .font(.caption.monospacedDigit())
                             .frame(width: 38, height: 30)
-                            .background(Color.orange.opacity(0.1 + 0.8 * Double(v) / 100), in: RoundedRectangle(cornerRadius: 4))
+                            .background(Theme.blue.opacity(0.12 + 0.85 * Double(v) / 100), in: RoundedRectangle(cornerRadius: 4))
                             .onTapGesture {
                                 editValue = v
                                 editing = (t, s)

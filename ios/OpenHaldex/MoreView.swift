@@ -6,7 +6,7 @@ struct MoreView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            ThemedList {
                 NavigationLink("CAN View") { CanView() }
                 NavigationLink("Logs") { LogsView() }
                 NavigationLink("Wi-Fi (MMI hotspot)") { WifiView() }
@@ -38,7 +38,7 @@ struct CanView: View {
     @State private var dump: String?
 
     var body: some View {
-        List {
+        ThemedList {
             Section {
                 Picker("Bus", selection: $bus) {
                     Text("All").tag("all")
@@ -134,7 +134,7 @@ struct LogsView: View {
     private var l: JSON { model.status["logging"] }
 
     var body: some View {
-        List {
+        ThemedList {
             Section("Logging") {
                 SettingToggle(title: "Log events to file", value: l["enabled"].boolValue) { ["logToFileEnabled": $0] }
                 SettingToggle(title: "Log CAN to file", value: l["canEnabled"].boolValue) { ["logCanToFileEnabled": $0] }
@@ -221,7 +221,7 @@ struct WifiView: View {
     @State private var net = JSON(nil)
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 Toggle("Join hotspot", isOn: $staEnabled)
                 TextField("Hotspot name (SSID)", text: $ssid)

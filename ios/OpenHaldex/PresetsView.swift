@@ -99,9 +99,11 @@ struct PresetBar: View {
                                     Text(modeLabel(p.mode)).font(.caption2).opacity(0.8)
                                 }
                                 .padding(.horizontal, 16).padding(.vertical, 10)
-                                .background(on ? Color.orange : Color.white.opacity(0.08),
+                                .background(on ? AnyShapeStyle(Theme.activeGradient) : AnyShapeStyle(Theme.idle),
                                             in: RoundedRectangle(cornerRadius: 12))
-                                .foregroundStyle(on ? .black : .white)
+                                .overlay(RoundedRectangle(cornerRadius: 12)
+                                    .stroke(on ? Theme.cyan.opacity(0.7) : Theme.cardStroke, lineWidth: 1))
+                                .foregroundStyle(.white)
                             }
                             .buttonStyle(.plain)
                         }
@@ -123,7 +125,7 @@ struct PresetsEditor: View {
     @State private var confirmReset = false
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 ForEach($draft) { $p in
                     NavigationLink {
@@ -198,7 +200,7 @@ struct PresetDetail: View {
     let maps: [String]
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 TextField("Name", text: $preset.name)
                     .onChange(of: preset.name) { _, v in if v.count > 16 { preset.name = String(v.prefix(16)) } }

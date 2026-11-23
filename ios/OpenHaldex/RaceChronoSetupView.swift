@@ -59,7 +59,7 @@ struct RaceChronoSetupView: View {
     @State private var copied: String?
 
     var body: some View {
-        List {
+        ThemedList {
             Section {
                 Text("In RaceChrono: Settings → OpenHaldex-RC → CAN-Bus channels → Add. Enter the PID, pick the closest channel type, and paste the equation. Needs RaceChrono Pro.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -77,7 +77,7 @@ struct RaceChronoSetupView: View {
                                     Text(ch.unit).font(.caption).foregroundStyle(.secondary)
                                 }
                                 HStack {
-                                    Text(ch.equation).font(.caption.monospaced()).foregroundStyle(.orange)
+                                    Text(ch.equation).font(.caption.monospaced()).foregroundStyle(Theme.cyan)
                                     Spacer()
                                     Image(systemName: copied == ch.equation ? "checkmark" : "doc.on.doc")
                                         .font(.caption).foregroundStyle(.secondary)

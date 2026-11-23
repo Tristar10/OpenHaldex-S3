@@ -57,6 +57,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
+            .background(ThemeBackground())
             .navigationTitle("OpenHaldex")
             .refreshable {
                 await model.refreshStatus()
@@ -96,7 +97,7 @@ struct HomeView: View {
             }
             if effective != mode && !effective.isEmpty {
                 Text("Effective mode: \(modeLabel(effective)) (trigger/protection override)")
-                    .font(.caption).foregroundStyle(.orange)
+                    .font(.caption).foregroundStyle(Theme.pink)
             }
         }
         .card()
@@ -113,9 +114,9 @@ struct HomeView: View {
 
     private var flagsRow: some View {
         HStack(spacing: 10) {
-            flag("TMP", on: tempProtection, onColor: .red)
+            flag("TEMP", on: tempProtection, onColor: Theme.pink)
             flag("CAN", on: canOk, onColor: .green, offColor: .red)
-            flag("AWD", on: lockActual > 0, onColor: .orange)
+            flag("AWD", on: lockActual > 0, onColor: Theme.cyan)
         }
     }
 
@@ -158,8 +159,13 @@ struct HomeView: View {
             Text(title)
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 64)
-                .background(active ? Color.orange : Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                .foregroundStyle(active ? .black : .white)
+                .background {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(active ? AnyShapeStyle(Theme.activeGradient) : AnyShapeStyle(Theme.idle))
+                        .shadow(color: active ? Theme.blue.opacity(0.6) : .clear, radius: 10, y: 3)
+                }
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(active ? Theme.cyan.opacity(0.7) : Theme.cardStroke, lineWidth: 1))
+                .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
     }
@@ -168,7 +174,10 @@ struct HomeView: View {
         Text(t)
             .font(.caption.bold())
             .frame(maxWidth: .infinity, minHeight: 32)
-            .background((on ? onColor : offColor).opacity(on ? 0.85 : 0.25), in: RoundedRectangle(cornerRadius: 8))
+            .tracking(1)
+            .foregroundStyle(on ? .white : .secondary)
+            .background((on ? onColor : offColor).opacity(on ? 0.75 : 0.18), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(on ? onColor : Theme.cardStroke, lineWidth: 1))
     }
 }
 
@@ -176,6 +185,7 @@ extension View {
     func card() -> some View {
         padding()
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.cardStroke, lineWidth: 1))
     }
 }

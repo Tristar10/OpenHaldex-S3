@@ -16,7 +16,9 @@ struct RootView: View {
             MoreView()
                 .tabItem { Label("More", systemImage: "ellipsis.circle") }
         }
-        .tint(.orange)
+        .tint(Theme.cyan)
+        .scrollContentBackground(.hidden)
+        .background(ThemeBackground())
         .overlay(alignment: .top) { ToastView() }
     }
 }

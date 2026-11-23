@@ -8,7 +8,7 @@ struct SetupView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            ThemedForm {
                 Section("Haldex generation") {
                     Picker("Generation", selection: Binding(
                         get: { s["haldexGeneration"].intValue },
@@ -144,7 +144,7 @@ struct ModeTriggerView: View {
 
     var body: some View {
         let t = model.status["modeTrigger"]
-        Form {
+        ThemedForm {
             Section {
                 Toggle("Enabled", isOn: $enabled)
                 NavigationLink {
@@ -209,7 +209,7 @@ struct ExperimentalView: View {
 
     var body: some View {
         let e = model.status["experimental"]
-        Form {
+        ThemedForm {
             Section {
                 Toggle("Experimental features", isOn: $enabled)
             } footer: {
@@ -261,7 +261,7 @@ struct LearnView: View {
     @State private var confirmClear = false
 
     var body: some View {
-        Form {
+        ThemedForm {
             Section {
                 ValueRow("Status", learn["active"].boolValue ? "Learning…" : (learn["tableValid"].boolValue ? "Calibrated" : "Not calibrated"))
                 if learn["active"].boolValue {

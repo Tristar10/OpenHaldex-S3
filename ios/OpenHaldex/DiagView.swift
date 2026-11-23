@@ -8,7 +8,7 @@ struct DiagView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            ThemedList {
                 Section("Control") {
                     ValueRow("Mode", modeLabel(s["mode"].stringValue))
                     ValueRow("Effective mode", modeLabel(s["effectiveMode"].stringValue))
@@ -71,7 +71,7 @@ struct RawJSONView: View {
     let json: JSON
 
     var body: some View {
-        List {
+        ThemedList {
             ForEach(json.keys, id: \.self) { k in
                 let v = json[k]
                 if !v.keys.isEmpty {
@@ -97,7 +97,7 @@ struct DtcView: View {
     @State private var confirmClear = false
 
     var body: some View {
-        List {
+        ThemedList {
             Section {
                 Button(busy ? "Reading…" : "Read fault codes") { read() }.disabled(busy)
                 Button("Clear fault codes", role: .destructive) { confirmClear = true }.disabled(busy)
@@ -145,7 +145,7 @@ struct IdentityView: View {
     @State private var busy = false
 
     var body: some View {
-        List {
+        ThemedList {
             Button(busy ? "Reading…" : "Read identification") {
                 busy = true
                 Task {
@@ -183,7 +183,7 @@ struct MeasuredView: View {
     }()
 
     var body: some View {
-        List {
+        ThemedList {
             Button(busy ? "Reading…" : "Read measured values") { run() }.disabled(busy)
             ForEach(rows.indices, id: \.self) { i in ValueRow(rows[i].0, rows[i].1) }
         }
