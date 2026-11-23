@@ -88,7 +88,7 @@ struct PresetBar: View {
     var body: some View {
         if !presets.items.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("PRESETS").font(.caption.bold()).foregroundStyle(.secondary)
+                SectionTitle("Presets")
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(presets.items) { p in
@@ -145,7 +145,7 @@ struct PresetsEditor: View {
                 }
                 .disabled(draft.count >= 8)
             } header: {
-                Text("Presets (\(draft.count)/8)")
+                SectionTitle("Presets (\(draft.count)/8)")
             } footer: {
                 Text("Shown on the MMI and on Home in this order. Names up to 16 characters. A preset only changes the settings it specifies.")
             }
@@ -225,7 +225,7 @@ struct PresetDetail: View {
                             value: $preset.releaseRate, in: 0...500, step: 10)
                 }
             } header: {
-                Text("Optional gates")
+                SectionTitle("Optional gates")
             } footer: {
                 Text("Off = this preset leaves the setting as it is. 0 on a gate turns that gate off.")
             }

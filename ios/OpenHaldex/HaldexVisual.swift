@@ -1,86 +1,172 @@
 import SwiftUI
 
-/// Top-down view of the car (the real livery) with an x-ray drivetrain drawn
-/// on top: front wheels follow the steering, the propshaft and rear axle light
-/// up with the actual Haldex lock, and torque "flows" rearward while engaged.
-/// Beside it a lock gauge with the target marked.
+/// Drivetrain card: the car (real livery, x-ray drivetrain) beside a lock
+/// gauge, target, steering and clutch temperature.
 struct HaldexVisual: View {
     let lockActual: Int
     let lockTarget: Int
     let steeringDeg: Double?
     let off: Bool
-
-    /// Typical VW steering ratio, only used to draw the road-wheel angle.
-    private let steeringRatio = 15.0
-    private let carHeight: CGFloat = 360
+    let live: Bool
+    let split: (front: Int, rear: Int)?
+    let clutchTemp: Int?
+    let tempProtection: Bool
+    var carHeight: CGFloat = 360
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("DRIVETRAIN").font(.caption.bold()).tracking(1.5).foregroundStyle(Theme.cyan.opacity(0.9))
+                SectionTitle("Drivetrain")
                 Spacer()
-                if off {
-                    Text("STOCK CONTROL").font(.caption2.bold()).tracking(1)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Theme.idle, in: Capsule())
+                if !live {
+                    tag("NOT CONNECTED", Theme.pink)
+                } else if off {
+                    tag("STOCK CONTROL", Theme.ice)
                 }
             }
             HStack(alignment: .center, spacing: 14) {
-                car
+                HaldexCar(lockActual: lockActual, steeringDeg: steeringDeg, off: off, live: live,
+                          split: split, height: carHeight)
                 VStack(spacing: 18) {
-                    LockGauge(actual: lockActual, target: lockTarget)
+                    LockGauge(actual: lockActual, target: lockTarget, live: live)
                         .frame(width: 150, height: 150)
-                    VStack(spacing: 10) {
-                        stat("TARGET", "\(lockTarget)%", Theme.pink)
-                        HStack {
-                            Text("STEERING").font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
-                            Spacer()
+                    VStack(spacing: 12) {
+                        row("TARGET") {
+                            Circle().fill(Theme.pink).frame(width: 6, height: 6)
+                            Text("\(lockTarget)%").font(.subheadline.monospacedDigit().bold())
+                        }
+                        row("STEERING") {
                             Image(systemName: "steeringwheel")
                                 .rotationEffect(.degrees(steeringDeg ?? 0))
                                 .foregroundStyle(Theme.ice)
-                            Text(steeringText).font(.subheadline.monospacedDigit().bold())
+                            Text(steeringDeg.map { String(format: "%+.0f°", $0) } ?? "—")
+                                .font(.subheadline.monospacedDigit().bold())
                         }
+                        ClutchTempBar(tempC: clutchTemp, protection: tempProtection)
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .opacity(live ? 1 : 0.5)
             }
         }
         .animation(.easeOut(duration: 0.25), value: lockActual)
-        .animation(.easeOut(duration: 0.15), value: steeringDeg)
+        .animation(.easeOut(duration: 0.3), value: live)
     }
 
-    private var car: some View {
-        let w = carHeight * CarGeometry.aspect
-        return TimelineView(.animation(minimumInterval: 1 / 30, paused: fraction == 0)) { tl in
+    private func tag(_ t: String, _ c: Color) -> some View {
+        Text(t).font(.caption2.bold()).tracking(1)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .foregroundStyle(c)
+            .background(c.opacity(0.12), in: Capsule())
+            .overlay(Capsule().stroke(c.opacity(0.4), lineWidth: 1))
+    }
+
+    private func row<V: View>(_ label: String, @ViewBuilder _ value: () -> V) -> some View {
+        HStack(spacing: 6) {
+            Text(label).font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
+            Spacer()
+            value()
+        }
+    }
+}
+
+/// Haldex clutch temperature as a small thermometer bar; turns pink when
+/// the controller's temperature protection is active or it runs hot.
+struct ClutchTempBar: View {
+    let tempC: Int?
+    let protection: Bool
+    private let maxC = 120.0
+    private let hotC = 90.0
+
+    var body: some View {
+        let t = Double(tempC ?? 0)
+        let frac = min(max(t / maxC, 0), 1)
+        let hot = protection || t >= hotC
+        VStack(spacing: 5) {
+            HStack {
+                Text("CLUTCH").font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: hot ? "thermometer.high" : "thermometer.medium")
+                    .foregroundStyle(hot ? Theme.pink : Theme.ice)
+                Text(tempC.map { "\($0)°C" } ?? "—").font(.subheadline.monospacedDigit().bold())
+                    .foregroundStyle(hot ? Theme.pink : .primary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.idle)
+                    // Hot zone marker.
+                    Rectangle().fill(Theme.pink.opacity(0.35))
+                        .frame(width: 1.5)
+                        .offset(x: geo.size.width * hotC / maxC)
+                    Capsule()
+                        .fill(LinearGradient(colors: hot ? [Theme.blue, Theme.pink] : [Theme.blue, Theme.cyan],
+                                             startPoint: .leading, endPoint: .trailing))
+                        .frame(width: tempC == nil ? 0 : max(geo.size.width * frac, 6))
+                }
+            }
+            .frame(height: 6)
+        }
+        .animation(.easeOut(duration: 0.4), value: tempC)
+    }
+}
+
+/// The car itself: livery image with the x-ray drivetrain on top. Dimmed and
+/// frozen when the controller is not connected.
+struct HaldexCar: View {
+    let lockActual: Int
+    let steeringDeg: Double?
+    let off: Bool
+    let live: Bool
+    let split: (front: Int, rear: Int)?
+    let height: CGFloat
+
+    /// Typical VW steering ratio, only used to draw the road-wheel angle.
+    private let steeringRatio = 15.0
+    private var fraction: Double { live ? Double(min(max(lockActual, 0), 100)) / 100 : 0 }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: fraction == 0)) { tl in
             let phase = tl.date.timeIntervalSinceReferenceDate
             ZStack {
                 Image("CarTop").resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                    .saturation(live ? 1 : 0.15)
+                    .opacity(live ? 1 : 0.55)
                 Canvas { ctx, size in
-                    DrivetrainOverlay(fraction: fraction, off: off,
-                                      roadAngle: .degrees((steeringDeg ?? 0) / steeringRatio),
+                    DrivetrainOverlay(fraction: fraction, off: off, live: live,
+                                      roadAngle: .degrees((live ? steeringDeg ?? 0 : 0) / steeringRatio),
                                       phase: phase).draw(ctx, size)
                 }
+                if live { splitTags }
             }
         }
-        .frame(width: w, height: carHeight)
-        .accessibilityLabel("Haldex lock \(lockActual) percent, steering \(steeringText)")
+        .frame(width: height * CarGeometry.aspect, height: height)
+        .animation(.easeOut(duration: 0.15), value: steeringDeg)
+        .accessibilityElement()
+        .accessibilityLabel(live ? "Haldex lock \(lockActual) percent" : "Not connected")
     }
 
-    private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
-        HStack {
-            Text(label).font(.caption2.bold()).tracking(1).foregroundStyle(.secondary)
-            Spacer()
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(value).font(.subheadline.monospacedDigit().bold())
+    /// Torque-split tags at each axle, only where the split is known.
+    private var splitTags: some View {
+        GeometryReader { geo in
+            if let split {
+                axleTag("F \(split.front)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.frontY - 16)
+                axleTag("R \(split.rear)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.rearY + 18)
+            } else if lockActual > 0 {
+                axleTag("\(lockActual)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.rearY + 18)
+            }
         }
     }
 
-    private var steeringText: String {
-        guard let s = steeringDeg else { return "—" }
-        return String(format: "%+.0f°", s)
+    private func axleTag(_ t: String) -> some View {
+        Text(t).font(.caption2.monospacedDigit().bold())
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(Theme.navy.opacity(0.85), in: Capsule())
+            .overlay(Capsule().stroke(Theme.cyan.opacity(0.6), lineWidth: 1))
+            .foregroundStyle(Theme.ice)
     }
-
-    private var fraction: Double { Double(min(max(lockActual, 0), 100)) / 100 }
 }
 
 /// Where the drivetrain sits on CarTop.png (Audi TT 8S proportions: 4177 mm
@@ -98,6 +184,7 @@ enum CarGeometry {
 private struct DrivetrainOverlay {
     let fraction: Double
     let off: Bool
+    let live: Bool
     let roadAngle: Angle
     let phase: TimeInterval
 
@@ -112,8 +199,10 @@ private struct DrivetrainOverlay {
         let coupling = CGPoint(x: cx, y: ry - 0.045 * h)
 
         let lit = fraction > 0
-        let rearColor = lit ? Theme.cyan.opacity(0.35 + 0.65 * fraction) : Color.white.opacity(0.35)
-        let frontColor = off ? Theme.ice.opacity(0.7) : Theme.ice
+        let rearColor = lit ? Theme.cyan.opacity(0.35 + 0.65 * fraction) : Color.white.opacity(live ? 0.35 : 0.25)
+        let frontColor = !live ? Color.white.opacity(0.4) : (off ? Theme.ice.opacity(0.7) : Theme.ice)
+
+        if live { steeringTrace(ctx, from: CGPoint(x: cx, y: fy), wheelbase: ry - fy) }
 
         // Dark under-strokes keep the lines readable over the busy livery.
         func line(_ a: CGPoint, _ b: CGPoint, _ color: Color, _ width: CGFloat, glow: Bool) {
@@ -124,14 +213,11 @@ private struct DrivetrainOverlay {
             c.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
         }
 
-        // Front axle: always driven.
         line(fl, fr, frontColor, 3.5, glow: false)
-        // Propshaft from the front diff back to the coupling.
         line(CGPoint(x: cx, y: fy), coupling, lit ? rearColor : Color.white.opacity(0.3), 3, glow: lit)
-        // Rear axle, lit with engagement.
         line(rl, rr, rearColor, 3.5, glow: lit)
 
-        // Torque flow: dashes travelling rearward, denser/faster with more lock.
+        // Torque flow: dashes travelling rearward, faster with more lock.
         if lit {
             let dash = Path { $0.move(to: CGPoint(x: cx, y: fy)); $0.addLine(to: coupling) }
             let speed = 40 + 90 * fraction
@@ -149,11 +235,43 @@ private struct DrivetrainOverlay {
         let fill = CGRect(x: box.minX + 3, y: box.minY + 3, width: (box.width - 6) * fraction, height: box.height - 6)
         cg.fill(Path(roundedRect: fill, cornerRadius: 2), with: .color(Theme.cyan.opacity(0.9)))
 
-        // Wheels (x-ray): fronts rotate with the road-wheel angle.
         wheel(ctx, fl, tyre, roadAngle, frontColor, glow: false)
         wheel(ctx, fr, tyre, roadAngle, frontColor, glow: false)
         wheel(ctx, rl, tyre, .zero, rearColor, glow: lit)
         wheel(ctx, rr, tyre, .zero, rearColor, glow: lit)
+    }
+
+    /// Faint path ahead of the car: a bicycle-model arc for the current
+    /// road-wheel angle, fading out toward the nose.
+    private func steeringTrace(_ ctx: GraphicsContext, from start: CGPoint, wheelbase: CGFloat) {
+        let a = roadAngle.radians
+        guard abs(a) > 0.004 else {
+            ctx.stroke(Path { $0.move(to: start); $0.addLine(to: CGPoint(x: start.x, y: 0)) },
+                       with: .linearGradient(Gradient(colors: [Theme.cyan.opacity(0.0), Theme.cyan.opacity(0.35)]),
+                                             startPoint: CGPoint(x: start.x, y: 0), endPoint: start),
+                       style: StrokeStyle(lineWidth: 2, dash: [4, 5]))
+            return
+        }
+        // Turning radius of the front axle centre (bicycle model).
+        let r = wheelbase / sin(a)
+        // Centre lies on the normal to the wheel heading (signed r: right turn > 0).
+        let centre = CGPoint(x: start.x + r * cos(a), y: start.y + r * sin(a))
+        let length = start.y  // trace up to the top of the image
+        let sweep = length / abs(r)
+        var p = Path()
+        let steps = 24
+        for i in 0...steps {
+            let t = Double(i) / Double(steps) * sweep
+            // Clockwise on screen for a right turn, anticlockwise for a left.
+            let ang = (a > 0 ? 1.0 : -1.0) * t
+            let dx = start.x - centre.x, dy = start.y - centre.y
+            let x = centre.x + dx * cos(ang) - dy * sin(ang)
+            let y = centre.y + dx * sin(ang) + dy * cos(ang)
+            if i == 0 { p.move(to: CGPoint(x: x, y: y)) } else { p.addLine(to: CGPoint(x: x, y: y)) }
+        }
+        ctx.stroke(p, with: .linearGradient(Gradient(colors: [Theme.cyan.opacity(0.0), Theme.cyan.opacity(0.45)]),
+                                            startPoint: CGPoint(x: start.x, y: 0), endPoint: start),
+                   style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 5]))
     }
 
     private func wheel(_ ctx: GraphicsContext, _ c: CGPoint, _ size: CGSize, _ angle: Angle, _ color: Color, glow: Bool) {
@@ -165,7 +283,6 @@ private struct DrivetrainOverlay {
         g.fill(p, with: .color(Theme.navy.opacity(0.72)))
         if glow { g.addFilter(.shadow(color: Theme.cyan.opacity(0.9), radius: 6)) }
         g.stroke(p, with: .color(color), lineWidth: 2.5)
-        // Tread lines.
         for i in 1..<4 {
             let y = r.minY + r.height * CGFloat(i) / 4
             g.stroke(Path { $0.move(to: CGPoint(x: r.minX + 3, y: y)); $0.addLine(to: CGPoint(x: r.maxX - 3, y: y)) },
@@ -178,37 +295,52 @@ private struct DrivetrainOverlay {
 struct LockGauge: View {
     let actual: Int
     let target: Int
+    var live = true
 
     private let start = 0.125, span = 0.75  // 270° arc, open at the bottom
 
     var body: some View {
-        let a = Double(min(max(actual, 0), 100)) / 100
+        let a = live ? Double(min(max(actual, 0), 100)) / 100 : 0
         let t = Double(min(max(target, 0), 100)) / 100
-        ZStack {
-            Circle().trim(from: start, to: start + span)
-                .stroke(Theme.idle, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                .rotationEffect(.degrees(90))
-            Circle().trim(from: start, to: start + span * max(a, 0.001))
-                .stroke(AngularGradient(colors: [Theme.blue, Theme.cyan], center: .center,
-                                        startAngle: .degrees(0), endAngle: .degrees(360 * span)),
-                        style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                .rotationEffect(.degrees(90))
-                .shadow(color: Theme.cyan.opacity(a > 0 ? 0.6 : 0), radius: 8)
-            // Target marker.
-            GeometryReader { geo in
-                let r = min(geo.size.width, geo.size.height) / 2
-                let ang = Angle.degrees(90 + 360 * (start + span * t))
-                Circle().fill(Theme.pink).frame(width: 10, height: 10)
-                    .overlay(Circle().stroke(Theme.navy, lineWidth: 2))
-                    .position(x: geo.size.width / 2 + r * cos(ang.radians), y: geo.size.height / 2 + r * sin(ang.radians))
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let lw = side * 0.08
+            ZStack {
+                Circle().trim(from: start, to: start + span)
+                    .stroke(Theme.idle, style: StrokeStyle(lineWidth: lw, lineCap: .round))
+                    .rotationEffect(.degrees(90))
+                // Scale ticks every 10 %.
+                ForEach(0..<11) { i in
+                    let ang = Angle.degrees(90 + 360 * (start + span * Double(i) / 10))
+                    Capsule().fill(Color.white.opacity(i % 5 == 0 ? 0.5 : 0.2))
+                        .frame(width: 1.5, height: i % 5 == 0 ? lw * 0.9 : lw * 0.5)
+                        .offset(y: -(side / 2 - lw * 1.6))
+                        .rotationEffect(ang + .degrees(90))
+                }
+                Circle().trim(from: start, to: start + span * max(a, 0.001))
+                    .stroke(AngularGradient(colors: [Theme.blue, Theme.cyan], center: .center,
+                                            startAngle: .degrees(0), endAngle: .degrees(360 * span)),
+                            style: StrokeStyle(lineWidth: lw, lineCap: .round))
+                    .rotationEffect(.degrees(90))
+                    .shadow(color: Theme.cyan.opacity(a > 0 ? 0.6 : 0), radius: 8)
+                if live {
+                    let r = side / 2
+                    let ang = Angle.degrees(90 + 360 * (start + span * t))
+                    Circle().fill(Theme.pink).frame(width: lw * 0.85, height: lw * 0.85)
+                        .overlay(Circle().stroke(Theme.navy, lineWidth: 2))
+                        .offset(x: r * cos(ang.radians), y: r * sin(ang.radians))
+                }
+                VStack(spacing: 0) {
+                    Text(live ? "\(actual)" : "—")
+                        .font(.system(size: side * 0.31, weight: .heavy, design: .rounded).monospacedDigit())
+                        .contentTransition(.numericText())
+                    Text("% LOCK").font(.system(size: max(side * 0.075, 10), weight: .bold)).tracking(1.5)
+                        .foregroundStyle(Theme.cyan)
+                }
             }
-            VStack(spacing: 0) {
-                Text("\(actual)")
-                    .font(.system(size: 46, weight: .heavy, design: .rounded).monospacedDigit())
-                    .contentTransition(.numericText())
-                Text("% LOCK").font(.caption2.bold()).tracking(1.5).foregroundStyle(Theme.cyan)
-            }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
+        .opacity(live ? 1 : 0.5)
         .animation(.easeOut(duration: 0.25), value: actual)
         .animation(.easeOut(duration: 0.25), value: target)
     }

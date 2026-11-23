@@ -86,10 +86,10 @@ struct RaceChronoSetupView: View {
                         }
                     }
                 } header: {
-                    Text(packet.title)
+                    SectionTitle(packet.title)
                 }
             }
-            Section("Mode numbers") {
+            ThemedSection("Mode numbers") {
                 Text("0 Off · 1 FWD · 2 50:50 · 3 60:40 · 4 70:30 · 5 80:20 · 6 90:10 · 7 Speed · 8 Throttle · 9 Map · 10 RPM")
                     .font(.footnote)
             }

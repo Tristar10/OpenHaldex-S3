@@ -11,11 +11,11 @@ struct MoreView: View {
                 NavigationLink("Logs") { LogsView() }
                 NavigationLink("Wi-Fi (MMI hotspot)") { WifiView() }
                 NavigationLink("RaceChrono setup") { RaceChronoSetupView() }
-                Section("Connection") {
+                ThemedSection("Connection") {
                     HStack { Text("Controller"); Spacer(); ConnectionBadge() }
                     Button("Reconnect") { api.reconnect() }
                 }
-                Section("About") {
+                ThemedSection("About") {
                     ValueRow("Firmware", model.status["version"].stringValue)
                     ValueRow("App", (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "")
                     Text("Firmware updates are done over USB.").font(.footnote).foregroundStyle(.secondary)
@@ -51,7 +51,7 @@ struct CanView: View {
                 SettingToggleCapture()
                 Button("Get 30 s text dump") { getDump() }
             }
-            Section("Decoded (\(data["decoded"].array.count))") {
+            ThemedSection("Decoded (\(data["decoded"].array.count))") {
                 ForEach(data["decoded"].array.indices, id: \.self) { i in
                     let d = data["decoded"][i]
                     HStack {
@@ -66,7 +66,7 @@ struct CanView: View {
                 }
             }
             if showRaw {
-                Section("Raw (\(data["raw"].array.count))") {
+                ThemedSection("Raw (\(data["raw"].array.count))") {
                     ForEach(data["raw"].array.indices, id: \.self) { i in
                         let r = data["raw"][i]
                         Text(rawLine(r)).font(.caption.monospaced())
@@ -135,7 +135,7 @@ struct LogsView: View {
 
     var body: some View {
         ThemedList {
-            Section("Logging") {
+            ThemedSection("Logging") {
                 SettingToggle(title: "Log events to file", value: l["enabled"].boolValue) { ["logToFileEnabled": $0] }
                 SettingToggle(title: "Log CAN to file", value: l["canEnabled"].boolValue) { ["logCanToFileEnabled": $0] }
                 SettingToggle(title: "Log errors to file", value: l["errorEnabled"].boolValue) { ["logErrorToFileEnabled": $0] }
@@ -144,7 +144,7 @@ struct LogsView: View {
                 SettingToggle(title: "Debug: network", value: l["debugNetworkEnabled"].boolValue) { ["logDebugNetworkEnabled": $0] }
                 SettingToggle(title: "Debug: CAN", value: l["debugCanEnabled"].boolValue) { ["logDebugCanEnabled": $0] }
             }
-            Section("Log files") {
+            ThemedSection("Log files") {
                 ForEach(files.indices, id: \.self) { i in
                     let path = files[i]["path"].stringValue
                     NavigationLink {
@@ -236,7 +236,7 @@ struct WifiView: View {
             } footer: {
                 Text("The controller joins the MMI's hotspot to feed the custom gauges.")
             }
-            Section("Hotspot") {
+            ThemedSection("Hotspot") {
                 ValueRow("Joined", net["staConnected"].boolValue ? net["staSsid"].stringValue : "no")
                 if net["staConnected"].boolValue {
                     ValueRow("Signal", "\(net["staRssi"].intValue) dBm")
@@ -251,7 +251,7 @@ struct WifiView: View {
                 ValueRow("Round trip", "\(m["rttMs"].intValue) ms (max \(m["rttMaxMs"].intValue))")
                 ValueRow("Head unit received / lost", "\(m["huRx"].intValue) / \(m["huLost"].intValue)")
             } header: {
-                Text("MMI gauge link")
+                SectionTitle("MMI gauge link")
             } footer: {
                 Text("UDP 49160 to the hotspot gateway. 1 Hz probes until the head unit answers, then 20 Hz.")
             }
@@ -264,7 +264,7 @@ struct WifiView: View {
                     }
                 }
             } header: {
-                Text("Bench test")
+                SectionTitle("Bench test")
             } footer: {
                 Text("Only for testing without the car: send the gauge data to this IP (e.g. a Mac on the same hotspot) instead of the hotspot's gateway. Leave blank in the car.")
             }

@@ -55,3 +55,33 @@ struct ThemedList<Content: View>: View {
         List { Group { content }.listRowBackground(Theme.card) }.themedBackground()
     }
 }
+
+/// Section header in the livery style: tracked caps with a cyan accent bar.
+struct SectionTitle: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Capsule().fill(LinearGradient(colors: [Theme.cyan, Theme.blue], startPoint: .top, endPoint: .bottom))
+                .frame(width: 3, height: 12)
+            Text(title.uppercased())
+                .font(.caption.bold()).tracking(1.6)
+                .foregroundStyle(Theme.cyan.opacity(0.9))
+        }
+    }
+}
+
+/// `Section("Title") { … }` with a SectionTitle header.
+struct ThemedSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        Section { content } header: { SectionTitle(title).textCase(nil) }
+    }
+}

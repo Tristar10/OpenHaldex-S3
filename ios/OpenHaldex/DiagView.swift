@@ -9,14 +9,14 @@ struct DiagView: View {
     var body: some View {
         NavigationStack {
             ThemedList {
-                Section("Control") {
+                ThemedSection("Control") {
                     ValueRow("Mode", modeLabel(s["mode"].stringValue))
                     ValueRow("Effective mode", modeLabel(s["effectiveMode"].stringValue))
                     ValueRow("Controller", s["disableController"].boolValue ? "disabled" : "enabled")
                     ValueRow("Standalone", s["isStandalone"].boolValue ? "yes" : "no")
                     ValueRow("Broadcast over CAN", s["effectiveBroadcastOpenHaldexOverCAN"].boolValue ? "on" : "off")
                 }
-                Section("Specified vs actual") {
+                ThemedSection("Specified vs actual") {
                     ValueRow("Lock specified", "\(s["telemetry"]["spec"].intValue)%")
                     ValueRow("Lock actual", "\(s["telemetry"]["act"].intValue)%")
                     ValueRow("Haldex state", s["telemetry"]["haldexState"].display)
@@ -24,7 +24,7 @@ struct DiagView: View {
                     ValueRow("Clutch 1 report", s["telemetry"]["clutch1Report"].display)
                     ValueRow("Clutch 2 report", s["telemetry"]["clutch2Report"].display)
                 }
-                Section("CAN") {
+                ThemedSection("CAN") {
                     ValueRow("Ready", s["can"]["ready"].display)
                     ValueRow("Chassis bus", s["can"]["chassis"].display)
                     ValueRow("Haldex bus", s["can"]["haldex"].display)
@@ -32,23 +32,23 @@ struct DiagView: View {
                     ValueRow("Last chassis frame", "\(s["can"]["lastChassisMs"].intValue) ms ago")
                     ValueRow("Last Haldex frame", "\(s["can"]["lastHaldexMs"].intValue) ms ago")
                 }
-                Section("Flags") {
+                ThemedSection("Flags") {
                     ValueRow("Temp protection", s["telemetry"]["tempProtection"].display)
                     ValueRow("Coupling open", s["telemetry"]["couplingOpen"].display)
                     ValueRow("Speed limit", s["telemetry"]["speedLimit"].display)
                     ValueRow("Inputs mapped", s["telemetry"]["inputsMapped"].display)
                 }
-                Section("Haldex (UDS)") {
+                ThemedSection("Haldex (UDS)") {
                     NavigationLink("Fault codes") { DtcView() }
                     NavigationLink("Identification") { IdentityView() }
                     if s["haldexGeneration"].intValue == 5 {
                         NavigationLink("Measured values (Gen 5)") { MeasuredView() }
                     }
                 }
-                Section("Power") {
+                ThemedSection("Power") {
                     ForEach(s["power"].keys, id: \.self) { k in ValueRow(k, s["power"][k].display) }
                 }
-                Section("System") {
+                ThemedSection("System") {
                     ValueRow("Firmware", s["version"].stringValue)
                     ValueRow("Uptime", uptime)
                     NavigationLink("All status fields") { RawJSONView(title: "Status", json: s) }
@@ -104,7 +104,7 @@ struct DtcView: View {
             }
             if !result.isNull {
                 let dtc = result["dtc"]
-                Section("\(dtc["dtcCount"].intValue) fault code(s)") {
+                ThemedSection("\(dtc["dtcCount"].intValue) fault code(s)") {
                     ForEach(dtc["records"].array.indices, id: \.self) { i in
                         let r = dtc["records"][i]
                         VStack(alignment: .leading, spacing: 2) {

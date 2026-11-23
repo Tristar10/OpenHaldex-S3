@@ -9,7 +9,7 @@ struct SetupView: View {
     var body: some View {
         NavigationStack {
             ThemedForm {
-                Section("Haldex generation") {
+                ThemedSection("Haldex generation") {
                     Picker("Generation", selection: Binding(
                         get: { s["haldexGeneration"].intValue },
                         set: { model.setSettings(["haldexGeneration": $0], label: "Generation set") })) {
@@ -21,7 +21,7 @@ struct SetupView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Power") {
+                ThemedSection("Power") {
                     SettingToggle(title: "Low-power sleep when parked",
                                   value: s["power"]["lowPowerSleepEnabled"].boolValue) {
                         ["lowPower": ["sleepEnabled": $0]]
@@ -39,7 +39,7 @@ struct SetupView: View {
                                           label: "Mappings cleared")
                     }
                 } header: {
-                    Text("Mapped inputs")
+                    SectionTitle("Mapped inputs")
                 } footer: {
                     Text(s["telemetry"]["inputsMapped"].boolValue
                          ? "Inputs mapped — curve modes can run."
@@ -176,7 +176,7 @@ struct ModeTriggerView: View {
                                       label: "Trigger saved")
                 }
             }
-            Section("Live") {
+            ThemedSection("Live") {
                 ValueRow("Active", t["active"].boolValue ? "yes" : "no")
                 ValueRow("Signal seen", t["seen"].boolValue ? "yes" : "no")
                 ValueRow("Last value", t["lastValue"].display)
@@ -215,14 +215,14 @@ struct ExperimentalView: View {
             } footer: {
                 Text("Master switch. Features below only run while this is on.")
             }
-            Section("Reverse auto-switch") {
+            ThemedSection("Reverse auto-switch") {
                 Toggle("Switch mode in reverse", isOn: $reverseOn)
                 Picker("Target mode", selection: $reverseMode) {
                     ForEach(allModeNames, id: \.self) { Text(modeLabel($0)).tag($0) }
                 }
                 ValueRow("Reverse active", e["reverseActive"].boolValue ? "yes" : "no")
             }
-            Section("Haldex thermal protection") {
+            ThemedSection("Haldex thermal protection") {
                 Toggle("Protect when hot", isOn: $thermalOn)
                 Picker("Target mode", selection: $thermalMode) {
                     ForEach(allModeNames, id: \.self) { Text(modeLabel($0)).tag($0) }

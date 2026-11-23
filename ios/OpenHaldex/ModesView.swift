@@ -5,18 +5,18 @@ struct ModesView: View {
     var body: some View {
         NavigationStack {
             ThemedList {
-                Section("Presets") {
+                ThemedSection("Presets") {
                     NavigationLink("Presets") { PresetsEditor() }
                 }
-                Section("Curve modes") {
+                ThemedSection("Curve modes") {
                     NavigationLink("Speed") { CurveEditor(kind: .speed) }
                     NavigationLink("Throttle") { CurveEditor(kind: .throttle) }
                     NavigationLink("RPM") { CurveEditor(kind: .rpm) }
                 }
-                Section("Map mode") {
+                ThemedSection("Map mode") {
                     NavigationLink("Map editor") { MapEditor() }
                 }
-                Section("All modes") {
+                ThemedSection("All modes") {
                     NavigationLink("Gates & release ramp") { Form { GateSettings(modeKey: nil) }.navigationTitle("Gates") }
                 }
             }
@@ -71,7 +71,7 @@ struct CurveEditor: View {
                 }
                 .disabled(points.count >= 16)
             } header: {
-                Text("\(kind.title) → lock %")
+                SectionTitle("\(kind.title) → lock %")
             } footer: {
                 Text("Points must be in ascending \(kind.title.lowercased()) order. Swipe to delete.")
             }
@@ -140,7 +140,7 @@ struct GateSettings: View {
                 ["broadcastOpenHaldexOverCAN": $0]
             }
         } header: {
-            Text("Gates & release")
+            SectionTitle("Gates & release")
         } footer: {
             Text("0 turns a gate off.")
         }
@@ -192,9 +192,9 @@ struct MapEditor: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Save active map") { saveActive() }
                 Button("Use Map mode now") { model.setMode("MAP") }
-            } header: { Text("Lock table (%)") }
+            } header: { SectionTitle("Lock table (%)") }
 
-            Section("Saved maps") {
+            ThemedSection("Saved maps") {
                 ForEach(maps.indices, id: \.self) { i in
                     let path = maps[i]["path"].string ?? maps[i].string ?? ""
                     HStack {

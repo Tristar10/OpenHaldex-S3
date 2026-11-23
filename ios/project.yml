@@ -6,7 +6,7 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MARKETING_VERSION: "0.2.0"
+    MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: TPJ8J8524S
@@ -17,6 +17,12 @@ targets:
     platform: iOS
     sources:
       - path: OpenHaldex
+    info:
+      path: OpenHaldex/Info.plist
+      properties:
+        UILaunchScreen:
+          UIImageName: LaunchCar
+          UIColorName: LaunchBackground
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tristar.openhaldex
@@ -24,7 +30,6 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: OpenHaldex
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "OpenHaldex connects to your OpenHaldex controller over Bluetooth to show live Haldex data and change modes."
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
