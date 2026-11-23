@@ -2612,9 +2612,11 @@ static const ApiRoute k_api_routes[] = {
   {"/api/wifi", false, handleWifiGet, nullptr},
   {"/api/wifi", true, nullptr, handleWifiPost},
   {"/api/network", false, handleNetworkGet, nullptr},
+#if OH_ENABLE_WEB  // Internet update check (HTTPS/TLS) only exists with the web build.
   {"/api/update", false, handleUpdateGet, nullptr},
   {"/api/update/check", true, handleUpdateCheck, nullptr},
   {"/api/update/install", true, handleUpdateInstall, nullptr},
+#endif
   {"/api/canview/dump", false, handleCanviewDump, nullptr},
   {"/api/canview", false, handleCanview, nullptr},
   {"/api/logs/read", false, handleLogsRead, nullptr},

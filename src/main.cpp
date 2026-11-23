@@ -1,20 +1,26 @@
 #include <Arduino.h>
 #include <WiFi.h>
+
+#include "functions/api/api.h"  // defines OH_ENABLE_WEB (default 1)
+
+#if OH_ENABLE_WEB
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
 #include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
+#endif
 
-#include "functions/api/api.h"
 #include "functions/can/can.h"
 #include "functions/config/config.h"
 #include "functions/core/state.h"
 #include "functions/tasks/tasks.h"
 #include "functions/storage/storage.h"
 #include "functions/storage/filelog.h"
+#if OH_ENABLE_WEB
 #include "functions/web/web.h"
 #include "functions/net/update.h"
+#endif
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
 #include "functions/telemetry/racechrono_ble.h"
@@ -24,12 +30,15 @@
 
 #include <esp_heap_caps.h>
 
+#if OH_ENABLE_WEB
 static AsyncWebServer server(80);
+#endif
 
 // Internal RAM, not PSRAM, is the limit once BLE + CAN + Wi-Fi run together.
 // loopTask peaks ~4 KB; Arduino's default reserves 8 KB.
 SET_LOOP_TASK_STACK_SIZE(6 * 1024);
 
+#if OH_ENABLE_WEB
 static const char* AP_SSID = "OpenHaldex-S3";
 static const char* MDNS_NAME = "openhaldex";
 static const uint32_t WIFI_STA_RETRY_MS = 10000;
@@ -264,6 +273,92 @@ void wifiApplySettings() {
   xTaskCreatePinnedToCore(wifiApplyTask, "wifiApply", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 }
 
+#else  // !OH_ENABLE_WEB
+
+// One-board build: the iOS app (over BLE) replaces the web UI, so Wi-Fi is only
+// a client of the MMI's hotspot (for the gauge link). No AP, DNS, mDNS, web
+// server or internet update check. With no hotspot configured (or joining
+// disabled) Wi-Fi stays completely off, which frees the most internal RAM.
+static const uint32_t WIFI_STA_RETRY_MS = 10000;
+static uint32_t g_sta_last_attempt_ms = 0;
+static String g_sta_last_attempt_ssid;
+static bool g_wifi_on = false;
+
+bool wifiInternetOk() {
+  return false;
+}
+
+static void applyStaPolicy(bool force_connect_attempt) {
+  String ssid;
+  String pass;
+  const bool sta_enabled = storageGetWifiStaEnabled();
+  const bool have_creds = storageGetWifiCreds(ssid, pass) && ssid.length() > 0;
+
+  if (!sta_enabled || !have_creds) {
+    g_sta_last_attempt_ms = 0;
+    g_sta_last_attempt_ssid = "";
+    if (g_wifi_on) {
+      WiFi.disconnect(true, true);
+      WiFi.mode(WIFI_OFF);
+      g_wifi_on = false;
+      LOG_INFO("wifi", "Wi-Fi off (no hotspot configured or joining disabled)");
+    }
+    return;
+  }
+
+  if (!g_wifi_on) {
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    g_wifi_on = true;
+    force_connect_attempt = true;
+  }
+
+  if (!force_connect_attempt && WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid) {
+    return;
+  }
+  const uint32_t now = millis();
+  const bool ssid_changed = (ssid != g_sta_last_attempt_ssid);
+  const bool retry_due = (g_sta_last_attempt_ms == 0) || ((now - g_sta_last_attempt_ms) >= WIFI_STA_RETRY_MS);
+  if (!force_connect_attempt && !ssid_changed && !retry_due) {
+    return;
+  }
+  LOG_INFO("wifi", "STA connect attempt ssid=%s", ssid.c_str());
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  g_sta_last_attempt_ms = now;
+  g_sta_last_attempt_ssid = ssid;
+}
+
+static void wifiStart() {
+  applyStaPolicy(true);
+}
+
+static void wifiStaMaintainTask(void* arg) {
+  (void)arg;
+  bool last_connected = false;
+  for (;;) {
+    applyStaPolicy(false);
+    const bool now_connected = g_wifi_on && (WiFi.status() == WL_CONNECTED);
+    if (now_connected != last_connected) {
+      if (now_connected) {
+        LOG_INFO("wifi", "STA connected ip=%s", WiFi.localIP().toString().c_str());
+      } else {
+        LOG_WARN("wifi", "STA disconnected");
+      }
+      last_connected = now_connected;
+    }
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
+// Called by /api/wifi (now reached from the app over BLE).
+void wifiApplySettings() {
+  // Runs on the BLE API task; applyStaPolicy is cheap and non-blocking.
+  applyStaPolicy(true);
+}
+
+#endif  // OH_ENABLE_WEB
+
 void setup() {
 
   Serial.begin(115200);
@@ -301,13 +396,15 @@ void setup() {
   racechronoWifiInit();
 #endif
 
-  updateInit();
   xTaskCreatePinnedToCore(wifiStaMaintainTask, "wifiStaMaintain", 2560, nullptr, 1, nullptr, OH_APP_TASK_CORE);
+#if OH_ENABLE_WEB
+  updateInit();
   xTaskCreatePinnedToCore(internetCheckTask, "internetCheck", 4096, nullptr, 1, nullptr, OH_APP_TASK_CORE);
 
   webInit(server);
   setupApi(server);
   server.begin();
+#endif
 }
 
 #if OH_MEM_DIAG
@@ -330,8 +427,10 @@ void loop() {
 #if OH_MEM_DIAG
   memDiagTick();
 #endif
+#if OH_ENABLE_WEB
   if (g_ap_dns_running) {
     g_ap_dns.processNextRequest();
   }
+#endif
   delay(10);
 }
