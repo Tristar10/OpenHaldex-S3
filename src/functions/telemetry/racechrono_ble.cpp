@@ -354,8 +354,26 @@ void telemetryTask(void* arg) {
       value[2] = (uint8_t)(packet.pid >> 16);
       value[3] = (uint8_t)(packet.pid >> 24);
       memcpy(&value[4], packet.data, packet.length);
-      g_can_data_characteristic->setValue(value, packet.length + 4);
-      g_can_data_characteristic->notify();
+      // Send this frame's bytes explicitly. setValue()+notify() only marks the
+      // attribute changed and NimBLE reads it later, so back-to-back frames
+      // overwrote each other and RaceChrono received only the last of a burst.
+      uint16_t targets[kMaxSubscribers];
+      portENTER_CRITICAL(&g_subscriber_lock);
+      memcpy(targets, g_subscribers, sizeof(targets));
+      portEXIT_CRITICAL(&g_subscriber_lock);
+      for (uint16_t conn : targets) {
+        if (conn == BLE_HS_CONN_HANDLE_NONE) {
+          continue;
+        }
+        // Out of host buffers (e.g. a big app response in flight): retry for a
+        // few ms rather than dropping the frame.
+        for (int attempt = 0; attempt < 4; attempt++) {
+          if (g_can_data_characteristic->notify(value, packet.length + 4, conn)) {
+            break;
+          }
+          vTaskDelay(pdMS_TO_TICKS(2));
+        }
+      }
     }
   }
 }
@@ -464,6 +482,10 @@ void racechronoBleInit() {
   Serial.println("[racechrono] BLE ready as OpenHaldex-RC");
   Serial.flush();
   LOG_INFO("racechrono", "BLE DIY service ready name=%s", kDeviceName);
+}
+
+bool racechronoBleBacklog() {
+  return g_client_connected && g_packet_queue && uxQueueMessagesWaiting(g_packet_queue) > 0;
 }
 
 void racechronoBleSubmitChassisFrame(const twai_message_t& frame) {

@@ -6,6 +6,8 @@
 // the CAN bridge and is intentionally best-effort: a full telemetry queue drops
 // data instead of delaying chassis-to-Haldex traffic.
 void racechronoBleInit();
+// True while RaceChrono frames are queued; the app API yields to them.
+bool racechronoBleBacklog();
 
 // Offers an unmodified chassis CAN frame to the RaceChrono filter. This call is
 // non-blocking and performs no BLE work on the CAN task/core.

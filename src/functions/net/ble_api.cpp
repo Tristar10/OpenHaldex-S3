@@ -7,6 +7,7 @@
 #include "functions/config/config.h"
 #include "functions/core/state.h"
 #include "functions/presets/presets.h"
+#include "functions/telemetry/racechrono_ble.h"
 #include "nimble/porting/nimble/include/os/os_mbuf.h"
 
 #include "freertos/FreeRTOS.h"
@@ -141,6 +142,10 @@ void sendResponse(uint16_t conn, const String& header, const String& body) {
 
     // notify() fails when the host is out of buffers; back off and retry so a
     // long response (CAN View, logs) streams at whatever rate the link allows.
+    // Telemetry first: wait (briefly) while RaceChrono frames are queued.
+    for (int wait = 0; wait < 10 && racechronoBleBacklog(); wait++) {
+      vTaskDelay(pdMS_TO_TICKS(2));
+    }
     int tries = 0;
     while (os_msys_num_free() < kMbufReserve || !g_tx->notify(packet, n + 1, conn)) {
       if (++tries >= kNotifyRetries || !connectionAlive(conn)) {

@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.9",
-  "notes": "OpenHaldex-S3 v1.1.9 (one-board-ble): TTC1 retry window, ASCII preset names, RaceChrono task stack 4 KB, app reloads presets after a refusal",
+  "version": "v1.1.10",
+  "notes": "OpenHaldex-S3 v1.1.10 (one-board-ble): RaceChrono BLE no longer loses frames in bursts (notify overwrite bug); telemetry-first pacing vs app API",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }
