@@ -14,6 +14,7 @@
 #include "functions/storage/filelog.h"
 #include "functions/canview/canview.h"
 #include "functions/can/can_id.h"
+#include "functions/can/signal_seen.h"
 #include "functions/net/update.h"
 #include "functions/tasks/tasks.h"
 #include "functions/power/power.h"
@@ -1869,6 +1870,29 @@ static void handleNetworkGet(ApiReq* request) {
   sendJson(request, 200, doc);
 }
 
+// Which signal-carrying frames this board has received, and how recently.
+static void handleSignalsGet(ApiReq* request) {
+  JsonDocument doc;
+  const uint32_t now = millis();
+  doc["uptimeMs"] = now;
+  doc["generation"] = haldexGeneration;
+  JsonArray arr = doc["frames"].to<JsonArray>();
+  for (uint8_t i = 0; i < signalSeenCount(); i++) {
+    const SignalSeenEntry& e = signalSeenEntry(i);
+    JsonObject o = arr.add<JsonObject>();
+    o["frame"] = e.frame;
+    o["id"] = e.id;
+    o["bus"] = e.bus == 0 ? "chassis" : "haldex";
+    o["signals"] = e.signals;
+    const uint32_t age = signalSeenAgeMs(i, now);
+    if (age == UINT32_MAX) o["ageMs"] = nullptr; else o["ageMs"] = age;
+    o["frames"] = signalSeenFrames(i);
+  }
+  JsonObject uds = doc["uds"].to<JsonObject>();
+  uds["clutchTempValid"] = received_haldex_clutch_temp_valid;
+  sendJson(request, 200, doc);
+}
+
 // OTA state snapshot used by OTA page polling.
 static void handleUpdateGet(ApiReq* request) {
   UpdateInfo info;
@@ -2687,6 +2711,7 @@ static const ApiRoute k_api_routes[] = {
   {"/api/wifi", false, handleWifiGet, nullptr},
   {"/api/wifi", true, nullptr, handleWifiPost},
   {"/api/network", false, handleNetworkGet, nullptr},
+  {"/api/signals", false, handleSignalsGet, nullptr},
 #if OH_ENABLE_WEB  // Internet update check (HTTPS/TLS) only exists with the web build.
   {"/api/update", false, handleUpdateGet, nullptr},
   {"/api/update/check", true, handleUpdateCheck, nullptr},

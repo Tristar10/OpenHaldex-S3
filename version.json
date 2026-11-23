@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.16",
-  "notes": "OpenHaldex-S3 v1.1.16 (one-board-ble): MMI link falls back to subnet .1 when the hotspot gives no gateway",
+  "version": "v1.1.17",
+  "notes": "OpenHaldex-S3 v1.1.17 (one-board-ble): /api/signals reports which signal frames the bus carries",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

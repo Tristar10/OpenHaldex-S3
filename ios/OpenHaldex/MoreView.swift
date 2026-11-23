@@ -7,6 +7,7 @@ struct MoreView: View {
     var body: some View {
         NavigationStack {
             ThemedList {
+                NavigationLink { SignalsView() } label: { Label("Signals seen", systemImage: "checklist") }
                 NavigationLink("CAN View") { CanView() }
                 NavigationLink("Logs") { LogsView() }
                 NavigationLink("Wi-Fi (MMI hotspot)") { WifiView() }
