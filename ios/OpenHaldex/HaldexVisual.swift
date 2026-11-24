@@ -151,17 +151,20 @@ struct HaldexCar: View {
     private var splitTags: some View {
         GeometryReader { geo in
             if let split {
-                axleTag("FRONT \(split.front)%")
-                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.frontY - 22)
-                axleTag("REAR \(split.rear)%")
-                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.rearY + 24)
+                axleTag("F \(split.front)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.frontY - 16)
+                axleTag("R \(split.rear)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.rearY + 18)
+            } else if lockActual > 0 {
+                axleTag("\(lockActual)%")
+                    .position(x: geo.size.width * CarGeometry.centerX, y: geo.size.height * CarGeometry.rearY + 18)
             }
         }
     }
 
     private func axleTag(_ t: String) -> some View {
-        Text(t).font(.footnote.monospacedDigit().weight(.heavy))
-            .padding(.horizontal, 8).padding(.vertical, 3)
+        Text(t).font(.caption2.monospacedDigit().bold())
+            .padding(.horizontal, 6).padding(.vertical, 2)
             .background(Theme.navy.opacity(0.85), in: Capsule())
             .overlay(Capsule().stroke(Theme.cyan.opacity(0.6), lineWidth: 1))
             .foregroundStyle(Theme.ice)
@@ -187,13 +190,6 @@ private struct DrivetrainOverlay {
     let roadAngle: Angle
     let phase: TimeInterval
 
-    /// Rear drive drawn so it reads at a glance over the busy livery:
-    /// - a dark chassis "H" (axles + propshaft) underneath gives contrast;
-    /// - the propshaft fills from the front toward the coupling in
-    ///   proportion to the lock (how far the drive reaches the rear);
-    /// - bold chevrons run rearward along the filled part, faster with more lock;
-    /// - the rear axle and tyres go from grey to bright cyan with the lock;
-    /// - the coupling carries the lock number itself.
     func draw(_ ctx: GraphicsContext, _ size: CGSize) {
         let g = CarGeometry.self
         let w = size.width, h = size.height
@@ -202,94 +198,49 @@ private struct DrivetrainOverlay {
         let fl = CGPoint(x: cx - g.frontHalfTrack * w, y: fy), fr = CGPoint(x: cx + g.frontHalfTrack * w, y: fy)
         let rl = CGPoint(x: cx - g.rearHalfTrack * w, y: ry), rr = CGPoint(x: cx + g.rearHalfTrack * w, y: ry)
         let tyre = CGSize(width: g.tyre.width * w, height: g.tyre.height * h)
-        let axleW = max(6, w * 0.022)
-        let shaftW = max(9, w * 0.032)
-        let couplingSize = CGSize(width: max(46, w * 0.15), height: max(30, w * 0.095))
-        let coupling = CGPoint(x: cx, y: ry - couplingSize.height / 2 - axleW)
-        let shaftTop = CGPoint(x: cx, y: fy + axleW / 2)
-        let shaftBottom = CGPoint(x: cx, y: coupling.y - couplingSize.height / 2)
+        let coupling = CGPoint(x: cx, y: ry - 0.045 * h)
 
-        let f = live && !off ? fraction : 0
-        let lit = f > 0
-        let grey = Color(red: 0.55, green: 0.60, blue: 0.70)
-        let frontColor = !live ? Color.white.opacity(0.45) : Theme.ice
+        let lit = fraction > 0
+        let rearColor = lit ? Theme.cyan.opacity(0.35 + 0.65 * fraction) : Color.white.opacity(live ? 0.35 : 0.25)
+        let frontColor = !live ? Color.white.opacity(0.4) : (off ? Theme.ice.opacity(0.7) : Theme.ice)
 
         if live { steeringTrace(ctx, from: CGPoint(x: cx, y: fy), wheelbase: ry - fy) }
 
-        func seg(_ a: CGPoint, _ b: CGPoint) -> Path { Path { $0.move(to: a); $0.addLine(to: b) } }
-
-        // 1. Dark chassis underlay for contrast.
-        let under = StrokeStyle(lineWidth: shaftW + 10, lineCap: .round)
-        for p in [seg(fl, fr), seg(rl, rr), seg(shaftTop, shaftBottom)] {
-            ctx.stroke(p, with: .color(Theme.navy.opacity(0.78)), style: under)
-        }
-
-        // 2. Front axle: always driven.
-        ctx.stroke(seg(fl, fr), with: .color(frontColor), style: StrokeStyle(lineWidth: axleW, lineCap: .round))
-
-        // 3. Propshaft: grey track, then the lit part from the front.
-        ctx.stroke(seg(shaftTop, shaftBottom), with: .color(grey.opacity(0.45)),
-                   style: StrokeStyle(lineWidth: shaftW, lineCap: .round))
-        if lit {
-            let len = shaftBottom.y - shaftTop.y
-            let litEnd = CGPoint(x: cx, y: shaftTop.y + len * f)
+        // Dark under-strokes keep the lines readable over the busy livery.
+        func line(_ a: CGPoint, _ b: CGPoint, _ color: Color, _ width: CGFloat, glow: Bool) {
+            let p = Path { $0.move(to: a); $0.addLine(to: b) }
+            ctx.stroke(p, with: .color(.black.opacity(0.55)), style: StrokeStyle(lineWidth: width + 4, lineCap: .round))
             var c = ctx
-            c.addFilter(.shadow(color: Theme.cyan.opacity(0.8), radius: 8))
-            c.stroke(seg(shaftTop, litEnd),
-                     with: .linearGradient(Gradient(colors: [Theme.blue, Theme.cyan]), startPoint: shaftTop, endPoint: litEnd),
-                     style: StrokeStyle(lineWidth: shaftW, lineCap: .round))
-
-            // Chevrons pointing rearward, travelling down the lit part.
-            let spacing = shaftW * 2.2
-            let speed = 30 + 120 * f
-            let offset = CGFloat(phase * speed).truncatingRemainder(dividingBy: spacing)
-            var y = shaftTop.y + offset
-            var chev = Path()
-            let half = shaftW * 0.38
-            while y < litEnd.y - half {
-                chev.move(to: CGPoint(x: cx - half, y: y - half * 0.6))
-                chev.addLine(to: CGPoint(x: cx, y: y + half * 0.6))
-                chev.addLine(to: CGPoint(x: cx + half, y: y - half * 0.6))
-                y += spacing
-            }
-            ctx.stroke(chev, with: .color(.white.opacity(0.95)),
-                       style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            if glow { c.addFilter(.shadow(color: Theme.cyan.opacity(0.9), radius: 6)) }
+            c.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
         }
 
-        // 4. Rear axle: grey base, cyan over it with the lock.
-        ctx.stroke(seg(rl, rr), with: .color(grey.opacity(live ? 0.6 : 0.4)),
-                   style: StrokeStyle(lineWidth: axleW, lineCap: .round))
+        line(fl, fr, frontColor, 3.5, glow: false)
+        line(CGPoint(x: cx, y: fy), coupling, lit ? rearColor : Color.white.opacity(0.3), 3, glow: lit)
+        line(rl, rr, rearColor, 3.5, glow: lit)
+
+        // Torque flow: dashes travelling rearward, faster with more lock.
         if lit {
-            var c = ctx
-            c.addFilter(.shadow(color: Theme.cyan.opacity(0.9 * f), radius: 10))
-            c.stroke(seg(rl, rr), with: .color(Theme.cyan.opacity(0.25 + 0.75 * f)),
-                     style: StrokeStyle(lineWidth: axleW, lineCap: .round))
+            let dash = Path { $0.move(to: CGPoint(x: cx, y: fy)); $0.addLine(to: coupling) }
+            let speed = 40 + 90 * fraction
+            ctx.stroke(dash, with: .color(.white.opacity(0.85)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [3, 11],
+                                          dashPhase: -CGFloat(phase * speed).truncatingRemainder(dividingBy: 14)))
         }
 
-        // 5. Wheels.
-        wheel(ctx, fl, tyre, roadAngle, stroke: frontColor, fill: Theme.navy.opacity(0.75))
-        wheel(ctx, fr, tyre, roadAngle, stroke: frontColor, fill: Theme.navy.opacity(0.75))
-        let rearStroke = lit ? Theme.cyan.opacity(0.4 + 0.6 * f) : grey.opacity(live ? 0.7 : 0.45)
-        let rearFill = lit ? Theme.cyan.opacity(0.12 + 0.55 * f) : Theme.navy.opacity(0.75)
-        wheel(ctx, rl, tyre, .zero, stroke: rearStroke, fill: rearFill)
-        wheel(ctx, rr, tyre, .zero, stroke: rearStroke, fill: rearFill)
-
-        // 6. Coupling with the lock number in it.
-        let box = CGRect(x: coupling.x - couplingSize.width / 2, y: coupling.y - couplingSize.height / 2,
-                         width: couplingSize.width, height: couplingSize.height)
-        let boxPath = Path(roundedRect: box, cornerRadius: 7)
+        // Haldex coupling: a glowing block ahead of the rear diff.
+        let box = CGRect(x: coupling.x - 12, y: coupling.y - 9, width: 24, height: 18)
         var cg = ctx
-        if lit { cg.addFilter(.shadow(color: Theme.cyan.opacity(0.9), radius: 4 + 10 * f)) }
-        cg.fill(boxPath, with: .color(Theme.navy.opacity(0.95)))
-        ctx.stroke(boxPath, with: .color(lit ? Theme.cyan : grey.opacity(0.7)), lineWidth: 2)
-        // Fill level along the bottom of the box.
-        let bar = CGRect(x: box.minX + 4, y: box.maxY - 6, width: (box.width - 8) * f, height: 3)
-        ctx.fill(Path(roundedRect: bar, cornerRadius: 1.5), with: .color(Theme.cyan))
-        let label: String = !live ? "—" : (off ? "OFF" : "\(Int((fraction * 100).rounded()))%")
-        ctx.draw(Text(label).font(.system(size: couplingSize.height * 0.48, weight: .heavy, design: .rounded)
-                    .monospacedDigit())
-                    .foregroundColor(lit ? .white : grey),
-                 at: CGPoint(x: box.midX, y: box.midY - 2))
+        if lit { cg.addFilter(.shadow(color: Theme.cyan, radius: 4 + 10 * fraction)) }
+        cg.fill(Path(roundedRect: box, cornerRadius: 5), with: .color(Theme.navy.opacity(0.9)))
+        cg.stroke(Path(roundedRect: box, cornerRadius: 5), with: .color(lit ? rearColor : .white.opacity(0.4)), lineWidth: 2)
+        let fill = CGRect(x: box.minX + 3, y: box.minY + 3, width: (box.width - 6) * fraction, height: box.height - 6)
+        cg.fill(Path(roundedRect: fill, cornerRadius: 2), with: .color(Theme.cyan.opacity(0.9)))
+
+        wheel(ctx, fl, tyre, roadAngle, frontColor, glow: false)
+        wheel(ctx, fr, tyre, roadAngle, frontColor, glow: false)
+        wheel(ctx, rl, tyre, .zero, rearColor, glow: lit)
+        wheel(ctx, rr, tyre, .zero, rearColor, glow: lit)
     }
 
     /// Faint path ahead of the car: a bicycle-model arc for the current
@@ -325,20 +276,19 @@ private struct DrivetrainOverlay {
                    style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 5]))
     }
 
-    private func wheel(_ ctx: GraphicsContext, _ c: CGPoint, _ size: CGSize, _ angle: Angle,
-                       stroke: Color, fill: Color) {
+    private func wheel(_ ctx: GraphicsContext, _ c: CGPoint, _ size: CGSize, _ angle: Angle, _ color: Color, glow: Bool) {
         var g = ctx
         g.translateBy(x: c.x, y: c.y)
         g.rotate(by: angle)
         let r = CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height)
         let p = Path(roundedRect: r, cornerRadius: size.width * 0.35)
-        g.fill(p, with: .color(Theme.navy.opacity(0.8)))
-        g.fill(p, with: .color(fill))
-        g.stroke(p, with: .color(stroke), lineWidth: 3)
+        g.fill(p, with: .color(Theme.navy.opacity(0.72)))
+        if glow { g.addFilter(.shadow(color: Theme.cyan.opacity(0.9), radius: 6)) }
+        g.stroke(p, with: .color(color), lineWidth: 2.5)
         for i in 1..<4 {
             let y = r.minY + r.height * CGFloat(i) / 4
-            g.stroke(Path { $0.move(to: CGPoint(x: r.minX + 4, y: y)); $0.addLine(to: CGPoint(x: r.maxX - 4, y: y)) },
-                     with: .color(stroke.opacity(0.45)), lineWidth: 1.2)
+            g.stroke(Path { $0.move(to: CGPoint(x: r.minX + 3, y: y)); $0.addLine(to: CGPoint(x: r.maxX - 3, y: y)) },
+                     with: .color(color.opacity(0.35)), lineWidth: 1)
         }
     }
 }
@@ -356,18 +306,17 @@ struct LockGauge: View {
         let t = Double(min(max(target, 0), 100)) / 100
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
-            let lw = side * 0.1
+            let lw = side * 0.08
             ZStack {
                 Circle().trim(from: start, to: start + span)
                     .stroke(Theme.idle, style: StrokeStyle(lineWidth: lw, lineCap: .round))
                     .rotationEffect(.degrees(90))
-                // Scale ticks at 0 / 50 / 100 % only, outside the ring so they
-                // never collide with the number.
-                ForEach([0, 5, 10], id: \.self) { i in
+                // Scale ticks every 10 %.
+                ForEach(0..<11) { i in
                     let ang = Angle.degrees(90 + 360 * (start + span * Double(i) / 10))
-                    Capsule().fill(Color.white.opacity(0.45))
-                        .frame(width: 2, height: lw * 0.6)
-                        .offset(y: -(side / 2 + lw * 0.85))
+                    Capsule().fill(Color.white.opacity(i % 5 == 0 ? 0.5 : 0.2))
+                        .frame(width: 1.5, height: i % 5 == 0 ? lw * 0.9 : lw * 0.5)
+                        .offset(y: -(side / 2 - lw * 1.6))
                         .rotationEffect(ang + .degrees(90))
                 }
                 Circle().trim(from: start, to: start + span * max(a, 0.001))
