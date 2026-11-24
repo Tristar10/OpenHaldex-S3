@@ -356,17 +356,18 @@ struct LockGauge: View {
         let t = Double(min(max(target, 0), 100)) / 100
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
-            let lw = side * 0.08
+            let lw = side * 0.1
             ZStack {
                 Circle().trim(from: start, to: start + span)
                     .stroke(Theme.idle, style: StrokeStyle(lineWidth: lw, lineCap: .round))
                     .rotationEffect(.degrees(90))
-                // Scale ticks every 10 %.
-                ForEach(0..<11) { i in
+                // Scale ticks at 0 / 50 / 100 % only, outside the ring so they
+                // never collide with the number.
+                ForEach([0, 5, 10], id: \.self) { i in
                     let ang = Angle.degrees(90 + 360 * (start + span * Double(i) / 10))
-                    Capsule().fill(Color.white.opacity(i % 5 == 0 ? 0.5 : 0.2))
-                        .frame(width: 1.5, height: i % 5 == 0 ? lw * 0.9 : lw * 0.5)
-                        .offset(y: -(side / 2 - lw * 1.6))
+                    Capsule().fill(Color.white.opacity(0.45))
+                        .frame(width: 2, height: lw * 0.6)
+                        .offset(y: -(side / 2 + lw * 0.85))
                         .rotationEffect(ang + .degrees(90))
                 }
                 Circle().trim(from: start, to: start + span * max(a, 0.001))
@@ -382,13 +383,18 @@ struct LockGauge: View {
                         .overlay(Circle().stroke(Theme.navy, lineWidth: 2))
                         .offset(x: r * cos(ang.radians), y: r * sin(ang.radians))
                 }
-                VStack(spacing: 0) {
-                    Text(live ? "\(actual)" : "—")
-                        .font(.system(size: side * 0.31, weight: .heavy, design: .rounded).monospacedDigit())
-                        .contentTransition(.numericText())
-                    Text("% LOCK").font(.system(size: max(side * 0.075, 10), weight: .bold)).tracking(1.5)
-                        .foregroundStyle(Theme.cyan)
-                }
+                // Number in the middle; the label sits in the open gap at the
+                // bottom of the arc, clear of the ring.
+                Text(live ? "\(actual)" : "—")
+                    .font(.system(size: side * 0.36, weight: .heavy, design: .rounded).monospacedDigit())
+                    .minimumScaleFactor(0.5).lineLimit(1)
+                    .frame(width: side * 0.62)
+                    .contentTransition(.numericText())
+                    .offset(y: -side * 0.03)
+                Text("% LOCK").font(.system(size: max(side * 0.085, 10), weight: .bold)).tracking(1.2)
+                    .foregroundStyle(Theme.cyan)
+                    .fixedSize()
+                    .offset(y: side * 0.40)
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
