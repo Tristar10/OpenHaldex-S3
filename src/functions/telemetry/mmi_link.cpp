@@ -21,6 +21,7 @@ constexpr uint32_t kKey = 0;                 // ttlink -k
 constexpr uint32_t kStreamIntervalMs = 50;   // 20 Hz once the head unit answers
 constexpr uint32_t kProbeIntervalMs = 1000;  // until then, 1 Hz
 constexpr uint32_t kLinkTimeoutMs = 3000;    // no ack this long -> back to probing
+constexpr uint32_t kSocketRecycleMs = 10000; // unanswered probing this long -> new socket
 constexpr uint32_t kIdleIntervalMs = 500;    // STA not connected
 constexpr uint32_t kCatalogRepeatMs = 5000;  // TTP1 re-sent while linked (UDP can drop it)
 constexpr uint8_t kCmdApplyPreset = 1;
@@ -52,6 +53,15 @@ enum : uint16_t {
 
 WiFiUDP g_udp;
 bool g_udp_open = false;
+uint32_t g_udp_open_ms = 0;  // when the socket was (re)opened
+
+// Close the socket so the next tick opens a fresh one (new local port).
+void closeSocket() {
+  if (g_udp_open) {
+    g_udp.stop();
+    g_udp_open = false;
+  }
+}
 bool g_started = false;
 
 portMUX_TYPE g_stats_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -284,6 +294,9 @@ void mmiLinkTickImpl() {
       LOG_WARN("mmi", "link down (STA disconnected)");
       was_linked = false;
     }
+    // The hotspot went away (MMI restart): start over with a fresh socket
+    // once it is back rather than trusting one opened on the old link.
+    closeSocket();
     last_gateway = 0;
     next_due_ms = now + kIdleIntervalMs;
     return;
@@ -291,6 +304,7 @@ void mmiLinkTickImpl() {
 
   if (!g_udp_open) {
     g_udp_open = g_udp.begin(0) == 1;  // any local port; acks come back to it
+    g_udp_open_ms = now;
     if (!g_udp_open) {
       LOG_ERROR("mmi", "UDP socket open failed");
       next_due_ms = now + kProbeIntervalMs;
@@ -300,6 +314,7 @@ void mmiLinkTickImpl() {
 
   if ((uint32_t)gateway != last_gateway) {
     last_gateway = (uint32_t)gateway;
+    closeSocket();
     LOG_INFO("mmi", "STA gateway %s, probing udp %u", gateway.toString().c_str(), (unsigned int)kPort);
 #if OH_ENABLE_WEB
     // OpenHaldex's own AP is 192.168.4.1/24; a hotspot on the same subnet
@@ -341,6 +356,14 @@ void mmiLinkTickImpl() {
     sendCatalog(gateway);
     last_catalog_ms = now;
     last_catalog_version = presetsCatalogVersion();
+  }
+
+  // Probing with no answer for a while on this socket: recycle it. Covers a
+  // socket left stale by an MMI restart that the STA never noticed.
+  if (!linked && (int32_t)(now - g_udp_open_ms) >= (int32_t)kSocketRecycleMs &&
+      (g_last_ack_ms == 0 || (int32_t)(now - g_last_ack_ms) >= (int32_t)kSocketRecycleMs)) {
+    LOG_INFO("mmi", "no answer for %u s, reopening socket", (unsigned)(kSocketRecycleMs / 1000));
+    closeSocket();
   }
 
   if (linked != was_linked) {

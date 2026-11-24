@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.17",
-  "notes": "OpenHaldex-S3 v1.1.17 (one-board-ble): /api/signals reports which signal frames the bus carries",
+  "version": "v1.1.18",
+  "notes": "OpenHaldex-S3 v1.1.18 (one-board-ble): MMI link reopens its UDP socket after a Wi-Fi drop or 10 s without an answer",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }
