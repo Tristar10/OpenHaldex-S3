@@ -247,14 +247,15 @@ struct WifiView: View {
             Section {
                 let m = net["mmi"]
                 ValueRow("Link", m["linked"].boolValue ? "up" : (net["staConnected"].boolValue ? "probing…" : "down"))
-                ValueRow("Head unit", m["gateway"].stringValue.isEmpty ? "—" : m["gateway"].stringValue)
+                ValueRow("Head unit", m["gateway"].stringValue.isEmpty ? "—"
+                         : m["gateway"].stringValue + (m["port"].intValue > 0 ? ":\(m["port"].intValue)" : ""))
                 ValueRow("Sent / acked", "\(m["sent"].intValue) / \(m["acks"].intValue)")
                 ValueRow("Round trip", "\(m["rttMs"].intValue) ms (max \(m["rttMaxMs"].intValue))")
                 ValueRow("Head unit received / lost", "\(m["huRx"].intValue) / \(m["huLost"].intValue)")
             } header: {
                 SectionTitle("MMI gauge link")
             } footer: {
-                Text("UDP 49160 to the hotspot gateway. 1 Hz probes until the head unit answers, then 20 Hz.")
+                Text("UDP to the hotspot gateway. Until the head unit answers, probes step through ports 49153–49162 (shared with wireless CarPlay); then 20 Hz on the port that answered.")
             }
             Section {
                 TextField("Send to (blank = hotspot gateway)", text: $mmiTarget)

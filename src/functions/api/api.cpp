@@ -1866,6 +1866,7 @@ static void handleNetworkGet(ApiReq* request) {
   m["huRx"] = mmi.huRx;
   m["huLost"] = mmi.huLost;
   m["lastAckAgeMs"] = mmi.lastAckAgeMs;
+  m["port"] = mmi.port;
 
   sendJson(request, 200, doc);
 }

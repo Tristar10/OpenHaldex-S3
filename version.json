@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.18",
-  "notes": "OpenHaldex-S3 v1.1.18 (one-board-ble): MMI link reopens its UDP socket after a Wi-Fi drop or 10 s without an answer",
+  "version": "v1.1.19",
+  "notes": "OpenHaldex-S3 v1.1.19 (one-board-ble): MMI link discovers the head unit port in 49153-49162 (CarPlay shares the range)",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

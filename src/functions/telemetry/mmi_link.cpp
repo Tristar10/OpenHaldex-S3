@@ -14,12 +14,17 @@
 
 namespace {
 
-// Must match ttlink on the head unit (altscreen repo, gauges/headunit/ttlink.c).
-// The stock MMI firewall passes UDP 49153-49162 from hotspot clients.
-constexpr uint16_t kPort = 49160;
+// The stock MMI firewall passes UDP 49153-49162 from hotspot clients, the
+// range wireless CarPlay/AirPlay also takes ports from. The head unit's
+// receiver binds whichever port in it is free, so the board discovers it:
+// while unlinked, probes step through the range (starting at the last port
+// that answered) and the port an ack comes back from is the one kept.
+constexpr uint16_t kPortFirst = 49153;
+constexpr uint16_t kPortLast = 49162;
+constexpr uint16_t kPortDefault = 49160;
 constexpr uint32_t kKey = 0;                 // ttlink -k
 constexpr uint32_t kStreamIntervalMs = 50;   // 20 Hz once the head unit answers
-constexpr uint32_t kProbeIntervalMs = 1000;  // until then, 1 Hz
+constexpr uint32_t kProbeIntervalMs = 250;   // until then, one probe per 250 ms, next port each time
 constexpr uint32_t kLinkTimeoutMs = 3000;    // no ack this long -> back to probing
 constexpr uint32_t kSocketRecycleMs = 10000; // unanswered probing this long -> new socket
 constexpr uint32_t kIdleIntervalMs = 500;    // STA not connected
@@ -63,6 +68,13 @@ void closeSocket() {
   }
 }
 bool g_started = false;
+
+// Port the head unit's receiver is on (last one that answered, or the one
+// being probed). Written by the tick and readIncoming(), both on loop().
+uint16_t g_port = kPortDefault;
+uint16_t g_good_port = kPortDefault;  // last port an ack came from
+
+uint16_t nextPort(uint16_t p) { return p >= kPortLast ? kPortFirst : (uint16_t)(p + 1); }
 
 portMUX_TYPE g_stats_mux = portMUX_INITIALIZER_UNLOCKED;
 MmiLinkStats g_stats = {};
@@ -152,7 +164,7 @@ void sendCatalog(IPAddress gateway) {
     count++;
   }
   buf[10] = count;
-  if (g_udp.beginPacket(gateway, kPort) == 1) {
+  if (g_udp.beginPacket(gateway, g_port) == 1) {
     g_udp.write(buf, len);
     g_udp.endPacket();
   }
@@ -168,7 +180,7 @@ void sendCommandReply(IPAddress gateway, uint16_t cmd_seq, uint8_t result) {
   buf[10] = result;
   buf[11] = presetsActiveId();
   put16(buf + 12, presetsCatalogVersion());
-  if (g_udp.beginPacket(gateway, kPort) == 1) {
+  if (g_udp.beginPacket(gateway, g_port) == 1) {
     g_udp.write(buf, sizeof(buf));
     g_udp.endPacket();
   }
@@ -226,12 +238,24 @@ void readIncoming(IPAddress gateway) {
     if (n < 4 || g_udp.remoteIP() != gateway) {
       continue;
     }
+    const uint16_t from_port = g_udp.remotePort();
+    const bool port_ok = from_port >= kPortFirst && from_port <= kPortLast;
     if (memcmp(in, "TTC1", 4) == 0) {
+      if (port_ok) {
+        g_port = from_port;  // reply to the port the receiver sends from
+      }
       handleCommand(in, n, gateway);
       continue;
     }
     if (n < 20 || memcmp(in, "TTA1", 4) != 0) {
       continue;
+    }
+    if (port_ok && from_port != g_good_port) {
+      LOG_INFO("mmi", "head unit answering on udp %u", (unsigned)from_port);
+    }
+    if (port_ok) {
+      g_port = from_port;
+      g_good_port = from_port;
     }
     const uint16_t seq = (uint16_t)((in[4] << 8) | in[5]);
     const uint32_t now = millis();
@@ -315,7 +339,8 @@ void mmiLinkTickImpl() {
   if ((uint32_t)gateway != last_gateway) {
     last_gateway = (uint32_t)gateway;
     closeSocket();
-    LOG_INFO("mmi", "STA gateway %s, probing udp %u", gateway.toString().c_str(), (unsigned int)kPort);
+    LOG_INFO("mmi", "STA gateway %s, probing udp %u-%u", gateway.toString().c_str(), (unsigned)kPortFirst,
+             (unsigned)kPortLast);
 #if OH_ENABLE_WEB
     // OpenHaldex's own AP is 192.168.4.1/24; a hotspot on the same subnet
     // cannot be reached reliably. (No AP in the one-board build.)
@@ -329,7 +354,7 @@ void mmiLinkTickImpl() {
 
   uint8_t buf[12 + 6 * 26];
   const size_t len = buildDatagram(buf, seq, sent);
-  if (g_udp.beginPacket(gateway, kPort) == 1) {
+  if (g_udp.beginPacket(gateway, g_port) == 1) {
     g_udp.write(buf, len);
     if (g_udp.endPacket() == 1) {
       sent++;
@@ -342,6 +367,7 @@ void mmiLinkTickImpl() {
   g_stats.staConnected = true;
   g_stats.gateway = (uint32_t)gateway;
   g_stats.sent = sent;
+  g_stats.port = g_port;
   // Signed: readIncoming() stamps acks with a later millis() than `now`, so
   // an ack from this very tick would otherwise wrap to ~49 days and never link.
   const bool linked = g_last_ack_ms != 0 && (int32_t)(now - g_last_ack_ms) < (int32_t)kLinkTimeoutMs;
@@ -366,17 +392,23 @@ void mmiLinkTickImpl() {
     closeSocket();
   }
 
+  const bool just_lost = was_linked && !linked;
   if (linked != was_linked) {
     if (linked) {
-      LOG_INFO("mmi", "link up, head unit %s answering", gateway.toString().c_str());
+      LOG_INFO("mmi", "link up, head unit %s:%u answering", gateway.toString().c_str(), (unsigned)g_port);
     } else {
-      LOG_WARN("mmi", "link lost, back to 1 Hz probes");
+      LOG_WARN("mmi", "link lost, probing udp %u-%u again", (unsigned)kPortFirst, (unsigned)kPortLast);
     }
     was_linked = linked;
   }
 
   // Fixed cadence: step from the previous due time, but never queue a burst
   // after a stall.
+  // Unlinked: the next probe goes to the next port in the range. On losing
+  // the link, start again from the port that last answered.
+  if (!linked) {
+    g_port = just_lost ? g_good_port : nextPort(g_port);
+  }
   const uint32_t interval = linked ? kStreamIntervalMs : kProbeIntervalMs;
   next_due_ms += interval;
   if ((int32_t)(now - next_due_ms) >= 0) {
@@ -403,7 +435,7 @@ void mmiLinkInit() {
   }
   g_started = true;
   mmiLinkSetTarget(storageGetMmiTarget());
-  LOG_INFO("mmi", "MMI link ready, udp %u to STA gateway", (unsigned int)kPort);
+  LOG_INFO("mmi", "MMI link ready, udp %u-%u to STA gateway", (unsigned)kPortFirst, (unsigned)kPortLast);
 }
 
 bool mmiLinkSetTarget(const String& ip) {

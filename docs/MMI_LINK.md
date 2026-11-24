@@ -15,13 +15,21 @@ is decoded twice.
 - The MMI is the access point; OpenHaldex joins it as a client using the
   **STA Wi-Fi settings** (iOS app: More > Wi-Fi; web Setup page in builds with
   `OH_ENABLE_WEB=1`). The one-board build has no AP of its own.
-- OpenHaldex sends to its STA gateway (the MMI) on **UDP 49160**. The stock
-  MMI firewall already lets hotspot clients reach UDP 49153-49162, so the
-  head unit needs no firewall change.
-- Until the head unit answers, OpenHaldex sends one probe a second. Once
-  acks arrive it streams at 20 Hz; after 3 s without acks it drops back to
-  probing. With no STA connection it only checks the Wi-Fi state every 500 ms. A home router on the
-  STA side therefore sees at most one small datagram a second.
+- OpenHaldex sends to its STA gateway (the MMI) on a **UDP port it
+  discovers in 49153-49162**. The stock MMI firewall lets hotspot clients
+  reach exactly that range, so the head unit needs no firewall change. The
+  range is shared with wireless CarPlay/AirPlay, which takes some of those
+  ports when the phone connects, so no single fixed port is safe: the head
+  unit's receiver binds a free port in the range, and the board finds it.
+- Discovery: until the head unit answers, OpenHaldex sends a probe every
+  250 ms, each to the next port in the range (a full sweep takes 2.5 s). The
+  source port of the first TTA1 ack is kept; TTG1/TTP1/TTR1 then go there
+  only, at 20 Hz. After 3 s without acks it goes back to probing, starting
+  from the port that last answered. With no STA connection it only checks the
+  Wi-Fi state every 500 ms. A home router on the STA side sees at most four
+  small datagrams a second.
+- After 10 s of unanswered probing, or when the STA connection drops, the
+  board closes and reopens its UDP socket.
 - No task of its own: `mmiLinkTick()` runs from `loop()` (loopTask, priority
   1, about 100 calls a second) and limits itself to 20 Hz. Each call is one
   non-blocking UDP send at most, plus draining queued acks; about 200 bytes of
