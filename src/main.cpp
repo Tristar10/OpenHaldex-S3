@@ -17,6 +17,7 @@
 #include "functions/tasks/tasks.h"
 #include "functions/storage/storage.h"
 #include "functions/storage/filelog.h"
+#include "functions/core/boot_history.h"
 #if OH_ENABLE_WEB
 #include "functions/web/web.h"
 #include "functions/net/update.h"
@@ -331,12 +332,19 @@ static void applyStaPolicy(bool force_connect_attempt) {
   g_sta_last_attempt_ssid = ssid;
 }
 
-static void wifiStart() {
-  applyStaPolicy(true);
-}
+constexpr uint32_t kWifiStartDelayMs = 8000;
+
+// The first join happens in wifiStaMaintainTask after kWifiStartDelayMs.
+static void wifiStart() {}
 
 static void wifiStaMaintainTask(void* arg) {
   (void)arg;
+  // First join is deferred: at a car start the board boots with the ignition
+  // and the starter cranks a second or two later. Keeping the Wi-Fi radio
+  // (current spikes, ~45 KB of heap) out of that window leaves the supply
+  // and the heap to CAN and BLE. The MMI hotspot takes far longer to come up.
+  vTaskDelay(pdMS_TO_TICKS(kWifiStartDelayMs));
+  applyStaPolicy(true);
   bool last_connected = false;
   for (;;) {
     applyStaPolicy(false);
@@ -364,6 +372,7 @@ void wifiApplySettings() {
 void setup() {
 
   Serial.begin(115200);
+  bootHistoryInit();
   // General allocations over 256 B go to the (otherwise idle) 8 MB PSRAM.
   heap_caps_malloc_extmem_enable(256);
   LOG_INFO("system", "OpenHaldex S3 starting");
@@ -451,5 +460,6 @@ void loop() {
   }
 #endif
   mmiLinkTick();
+  bootHistoryTick();
   delay(10);
 }

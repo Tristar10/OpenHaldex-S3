@@ -28,6 +28,8 @@ is decoded twice.
   from the port that last answered. With no STA connection it only checks the
   Wi-Fi state every 500 ms. A home router on the STA side sees at most four
   small datagrams a second.
+- Probes all carry the same seq (it only advances while linked), so a sweep
+  over unanswered ports does not count as loss on the head unit.
 - After 10 s of unanswered probing, or when the STA connection drops, the
   board closes and reopens its UDP socket.
 - No task of its own: `mmiLinkTick()` runs from `loop()` (loopTask, priority

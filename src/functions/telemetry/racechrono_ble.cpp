@@ -477,14 +477,19 @@ void racechronoBleInit() {
   if (g_ble_boot_guard.magic == kBleBootGuardMagic && g_ble_boot_guard.phase != BleBootPhase::Unknown &&
       g_ble_boot_guard.phase != BleBootPhase::Running) {
     // The previous boot did not finish BLE startup. Only a real crash (panic,
-    // watchdog, brownout) or a clean startup failure skips BLE, and only for
+    // watchdog) or a clean startup failure skips BLE, and only for
     // this one boot: the guard is cleared so the next reset tries again. A
     // normal reset that merely interrupted startup (USB serial open, flashing,
     // RESET button, power-on) retries right away. Previously any of these left
     // BLE off until power was removed, which in the car may be never.
     const esp_reset_reason_t reason = esp_reset_reason();
+    // A brownout is not BLE's fault: in the car it is the supply sagging
+    // while the engine cranks, which often lands inside BLE startup (the
+    // board powers up with the ignition, a second or two before the
+    // starter). Skipping BLE then left the app and RaceChrono with no
+    // board for the whole drive. Only real crashes skip it.
     const bool crashed = reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT ||
-                         reason == ESP_RST_WDT || reason == ESP_RST_BROWNOUT;
+                         reason == ESP_RST_WDT;
     const BleBootPhase failed_phase = g_ble_boot_guard.phase;
     g_ble_boot_guard.phase = BleBootPhase::Unknown;
     if (crashed || failed_phase == BleBootPhase::Failed) {

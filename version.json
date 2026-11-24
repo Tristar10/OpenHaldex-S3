@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.19",
-  "notes": "OpenHaldex-S3 v1.1.19 (one-board-ble): MMI link discovers the head unit port in 49153-49162 (CarPlay shares the range)",
+  "version": "v1.1.20",
+  "notes": "OpenHaldex-S3 v1.1.20 (one-board-ble): brownout at car start no longer disables BLE; boot history (/api/boots); Wi-Fi joins 8 s after boot",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

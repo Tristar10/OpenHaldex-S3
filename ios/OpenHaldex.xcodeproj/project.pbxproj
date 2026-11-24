@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		120E1CA7BD6304CB9E534C2C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD010A96C7656A60BEF67A73 /* HomeView.swift */; };
+		42EA109682B74C495BD5DB34 /* BootsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E9F05D36C8D8E4F795B8C48 /* BootsView.swift */; };
 		5558A0EF921E531EE87733B0 /* ModesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1E309CE8A49ED7D4F6747 /* ModesView.swift */; };
 		5A4059C281ED770002C14D5D /* gen5-mwb.json in Resources */ = {isa = PBXBuildFile; fileRef = 593E0DBFDD24BD8213FAC4A1 /* gen5-mwb.json */; };
 		65CF11DD287AB7A86A9EA2F4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */; };
@@ -28,6 +29,7 @@
 
 /* Begin PBXFileReference section */
 		1D37456D4B1D5321E4046A59 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
+		1E9F05D36C8D8E4F795B8C48 /* BootsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BootsView.swift; sourceTree = "<group>"; };
 		1EB5044CF7C391466E17B684 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		342ADED42F0DEFC36FA2380B /* HaldexVisual.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaldexVisual.swift; sourceTree = "<group>"; };
 		37D1E309CE8A49ED7D4F6747 /* ModesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModesView.swift; sourceTree = "<group>"; };
@@ -63,6 +65,7 @@
 				CEB99B7A530E9B30895548B4 /* AppModel.swift */,
 				5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */,
 				70FB61DA7D97D19C279D9CFE /* BLEApi.swift */,
+				1E9F05D36C8D8E4F795B8C48 /* BootsView.swift */,
 				D0B6F2EDE9C2E23DDBE3B35D /* DiagView.swift */,
 				593E0DBFDD24BD8213FAC4A1 /* gen5-mwb.json */,
 				342ADED42F0DEFC36FA2380B /* HaldexVisual.swift */,
@@ -164,6 +167,7 @@
 			files = (
 				BDA26310D9B77358EA0CF391 /* AppModel.swift in Sources */,
 				AE0FF10258403E322FA5644A /* BLEApi.swift in Sources */,
+				42EA109682B74C495BD5DB34 /* BootsView.swift in Sources */,
 				F90AFA0F918F458DB7D25D03 /* DiagView.swift in Sources */,
 				7C2050682863C7E9A5798AC6 /* HaldexVisual.swift in Sources */,
 				120E1CA7BD6304CB9E534C2C /* HomeView.swift in Sources */,
@@ -260,7 +264,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -321,7 +325,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

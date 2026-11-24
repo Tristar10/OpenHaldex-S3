@@ -16,7 +16,15 @@ struct HomeView: View {
     private var mode: String { live?.mode ?? s["mode"].stringValue }
     private var effective: String { live?.effectiveMode ?? s["effectiveMode"].stringValue }
     private var lockTarget: Int { live?.lockTarget ?? s["telemetry"]["spec"].intValue }
-    private var lockActual: Int { live?.lockActual ?? s["telemetry"]["act"].intValue }
+    private var lockActual: Int { Self.demo ?? live?.lockActual ?? s["telemetry"]["act"].intValue }
+    /// Screenshot aid: launch with `-demoLock 65` to draw the drivetrain as if
+    /// connected at that lock.
+    static let demo: Int? = {
+        let a = ProcessInfo.processInfo.arguments
+        guard let i = a.firstIndex(of: "-demoLock"), i + 1 < a.count else { return nil }
+        return Int(a[i + 1])
+    }()
+    private var connected: Bool { Self.demo != nil || model.connected }
     private var tempProtection: Bool { live?.tempProtection ?? s["telemetry"]["tempProtection"].boolValue }
     private var canOk: Bool {
         live.map { $0.canReady && !$0.busFailure } ?? (s["can"]["ready"].boolValue && !s["can"]["busFailure"].boolValue)
@@ -84,9 +92,9 @@ struct HomeView: View {
         GeometryReader { geo in
             HStack(spacing: 16) {
                 HaldexCar(lockActual: lockActual, steeringDeg: live?.steeringDeg, off: mode == "STOCK",
-                          live: model.connected, split: split, height: geo.size.height - 8)
+                          live: connected, split: split, height: geo.size.height - 8)
                 VStack(spacing: 12) {
-                    LockGauge(actual: lockActual, target: lockTarget, live: model.connected)
+                    LockGauge(actual: lockActual, target: lockTarget, live: connected)
                         .frame(width: min(geo.size.height * 0.62, 230), height: min(geo.size.height * 0.62, 230))
                     HStack(spacing: 18) {
                         bigStat("TARGET", "\(lockTarget)%", Theme.pink)
@@ -147,7 +155,7 @@ struct HomeView: View {
 
     private func drivetrain(carHeight: CGFloat) -> some View {
         HaldexVisual(lockActual: lockActual, lockTarget: lockTarget, steeringDeg: live?.steeringDeg,
-                     off: mode == "STOCK", live: model.connected, split: split,
+                     off: mode == "STOCK", live: connected, split: split,
                      clutchTemp: clutchTemp, tempProtection: tempProtection, carHeight: carHeight)
             .card()
     }

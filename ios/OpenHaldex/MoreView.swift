@@ -8,6 +8,7 @@ struct MoreView: View {
         NavigationStack {
             ThemedList {
                 NavigationLink { SignalsView() } label: { Label("Signals seen", systemImage: "checklist") }
+                NavigationLink { BootsView() } label: { Label("Boot history", systemImage: "arrow.clockwise.circle") }
                 NavigationLink("CAN View") { CanView() }
                 NavigationLink("Logs") { LogsView() }
                 NavigationLink("Wi-Fi (MMI hotspot)") { WifiView() }

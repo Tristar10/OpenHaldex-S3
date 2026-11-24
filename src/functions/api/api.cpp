@@ -15,6 +15,7 @@
 #include "functions/canview/canview.h"
 #include "functions/can/can_id.h"
 #include "functions/can/signal_seen.h"
+#include "functions/core/boot_history.h"
 #include "functions/net/update.h"
 #include "functions/tasks/tasks.h"
 #include "functions/power/power.h"
@@ -1894,6 +1895,13 @@ static void handleSignalsGet(ApiReq* request) {
   sendJson(request, 200, doc);
 }
 
+// Reset reasons of the last boots, with what the board was doing just before.
+static void handleBootsGet(ApiReq* request) {
+  JsonDocument doc;
+  bootHistoryToJson(doc);
+  sendJson(request, 200, doc);
+}
+
 // OTA state snapshot used by OTA page polling.
 static void handleUpdateGet(ApiReq* request) {
   UpdateInfo info;
@@ -2713,6 +2721,7 @@ static const ApiRoute k_api_routes[] = {
   {"/api/wifi", true, nullptr, handleWifiPost},
   {"/api/network", false, handleNetworkGet, nullptr},
   {"/api/signals", false, handleSignalsGet, nullptr},
+  {"/api/boots", false, handleBootsGet, nullptr},
 #if OH_ENABLE_WEB  // Internet update check (HTTPS/TLS) only exists with the web build.
   {"/api/update", false, handleUpdateGet, nullptr},
   {"/api/update/check", true, handleUpdateCheck, nullptr},

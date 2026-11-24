@@ -373,7 +373,11 @@ void mmiLinkTickImpl() {
   const bool linked = g_last_ack_ms != 0 && (int32_t)(now - g_last_ack_ms) < (int32_t)kLinkTimeoutMs;
   g_stats.linked = linked;
   portEXIT_CRITICAL(&g_stats_mux);
-  seq++;
+  // Probes repeat one seq: most land on ports nobody answers on, and
+  // advancing would show up as "lost" on the head unit after every sweep.
+  if (linked) {
+    seq++;
+  }
 
   static uint32_t last_catalog_ms = 0;
   static uint16_t last_catalog_version = 0;
