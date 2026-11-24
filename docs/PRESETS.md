@@ -65,7 +65,7 @@ manual mode change or map edit it reads 255 ("none").
 
 ## MMI protocol
 
-Same UDP socket and port (49160) as the TTG1 stream (see
+Same UDP socket and port (discovered in 49153-49162) as the TTG1 stream (see
 [MMI_LINK.md](MMI_LINK.md)); big-endian; the head unit replies to the source
 port OpenHaldex sends from, as with TTA1. Key is the same u32 as TTG1.
 
@@ -87,9 +87,23 @@ the catalog version changes, and every 5 s while linked (UDP may drop it).
 | 0 | 4 | `TTC1` |
 | 4 | 4 | key, u32 |
 | 8 | 2 | command sequence, u16 (new value per command; reuse it to retry) |
-| 10 | 1 | command: 1 = APPLY_PRESET |
-| 11 | 1 | preset id |
-| 12 | 2 | catalog version the head unit is showing, u16 |
+| 10 | 1 | command: 1 = APPLY_PRESET, 2 = SET_MODE, 3 = SET_LOCK |
+| 11 | 1 | APPLY_PRESET: preset id. SET_MODE: mode number. SET_LOCK: lock % 0..100 |
+| 12 | 2 | APPLY_PRESET: catalog version the head unit is showing, u16. Others: 0 |
+
+Mode numbers (also TTG1 channel 12): 0 STOCK (Off), 1 FWD, 2 5050, 3 6040,
+4 7030, 5 8020, 6 9010, 7 SPEED, 8 THROTTLE, 9 MAP, 10 RPM, 11 MANUAL.
+
+- **SET_MODE** switches mode like the app's mode buttons; MAP uses the loaded
+  map. 11 (MANUAL) is refused with 6: use SET_LOCK.
+- **SET_LOCK** puts the controller in MANUAL, a fixed lock at that %, gated
+  like the Lock modes (pedal threshold, disable speed). Raising applies at
+  once; lowering follows the lock release ramp. The setpoint lives in RAM
+  only: after a reboot the board restores MAP, never MANUAL.
+- Both clear the active preset (channel 22 = 255) and are refused, like
+  presets, during calibration (3) or CAN View capture (4). Confirmation:
+  channel 12 (mode) and **channel 23** (MANUAL setpoint %, 255 when not in
+  MANUAL).
 
 Accepted only from the STA gateway with a matching key. A retry with the same
 sequence number within 5 s is answered again without applying twice; after
@@ -103,7 +117,7 @@ sequence number within 5 s is answered again without applying twice; after
 | 0 | 4 | `TTR1` |
 | 4 | 4 | key, u32 |
 | 8 | 2 | echoed command sequence |
-| 10 | 1 | result: 0 ok, 1 catalog version mismatch, 2 unknown preset, 3 calibration running, 4 CAN View capture active, 5 preset map missing, 255 unknown command |
+| 10 | 1 | result: 0 ok, 1 catalog version mismatch, 2 unknown preset, 3 calibration running, 4 CAN View capture active, 5 preset map missing, 6 value out of range, 255 unknown command |
 | 11 | 1 | active preset id (255 = none) |
 | 12 | 2 | current catalog version |
 

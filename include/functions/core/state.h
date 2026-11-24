@@ -16,6 +16,7 @@ enum openhaldex_mode_t {
   MODE_THROTTLE,
   MODE_MAP,
   MODE_RPM,
+  MODE_MANUAL, // fixed lock at manualLockPct (set from the MMI); not restored at boot
   openhaldex_mode_t_MAX,
   MODE_CUSTOM = MODE_SPEED, // legacy alias
   MODE_7525 = MODE_7030     // legacy alias
@@ -200,6 +201,8 @@ bool dashboardSignalsSet(const String* slots, size_t count, uint32_t timeout_ms 
 extern long lastCANChassisTick;
 extern long lastCANHaldexTick;
 extern uint8_t lastMode;
+// MODE_MANUAL setpoint, lock % 0..100. RAM only: a reboot never comes back locked.
+extern volatile uint8_t manualLockPct;
 extern uint8_t activePresetId;  // last applied preset (255 = none); persisted
 
 extern bool can_ready;

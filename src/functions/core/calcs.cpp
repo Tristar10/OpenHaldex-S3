@@ -311,6 +311,11 @@ float get_lock_target_adjustment() {
     raw_target = get_rpm_lock_target(mode);
     break;
 
+  case MODE_MANUAL:
+    // Same gating as the fixed Lock modes (pedal threshold, disable speed).
+    raw_target = lock_enabled(mode) ? (float)min((int)manualLockPct, 100) : 0.0f;
+    break;
+
   default:
     raw_target = 0.0f;
     break;

@@ -117,6 +117,7 @@ func modeLabel(_ m: String) -> String {
     case "9010": return "90:10"
     case "FWD", "RPM", "MAP": return m == "MAP" ? "Map" : m
     case "STOCK": return "Stock"
+    case "MANUAL": return "Manual (MMI)"
     default: return m.capitalized
     }
 }

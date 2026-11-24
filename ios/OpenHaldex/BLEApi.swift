@@ -272,7 +272,7 @@ extension BLEApi: CBPeripheralDelegate {
 /// Decodes the controller's 15-byte live status (firmware ble_api.cpp sendLive).
 struct LiveStatus: Equatable {
     /// Firmware `openhaldex_mode_t` order.
-    static let modeNames = ["STOCK", "FWD", "5050", "6040", "7030", "8020", "9010", "SPEED", "THROTTLE", "MAP", "RPM"]
+    static let modeNames = ["STOCK", "FWD", "5050", "6040", "7030", "8020", "9010", "SPEED", "THROTTLE", "MAP", "RPM", "MANUAL"]
 
     var mode = "STOCK"
     var effectiveMode = "STOCK"

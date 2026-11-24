@@ -42,6 +42,7 @@ bool parseMode(const char* name, uint8_t& out) {
   String want(name);
   want.toUpperCase();
   for (int m = 0; m < (int)openhaldex_mode_t_MAX; m++) {
+    if (m == MODE_MANUAL) continue;  // needs a setpoint; MMI-only
     if (want == get_openhaldex_mode_string((openhaldex_mode_t)m)) {
       out = (uint8_t)m;
       return true;
@@ -317,6 +318,51 @@ PresetResult presetsApply(uint8_t id, int32_t catalog_version) {
   return result;
 }
 
+// MMI SET_MODE / SET_LOCK: same guards as a preset, same effect as the
+// app's mode buttons; the active preset clears.
+static PresetResult guardManualChange() {
+  if (haldexLearnActive) return PRESET_REFUSED_LEARN;
+  if (apiCanviewCaptureActive()) return PRESET_REFUSED_CAPTURE;
+  return PRESET_OK;
+}
+
+static void setModeLocked(openhaldex_mode_t mode) {
+  state.mode = mode;
+  disableController = (mode == MODE_STOCK);
+  lastMode = (uint8_t)mode;
+  activePresetId = kPresetNone;
+  storageMarkDirty();
+}
+
+PresetResult presetsSetMode(uint8_t mode) {
+  if (mode >= openhaldex_mode_t_MAX || mode == MODE_MANUAL) return PRESET_OUT_OF_RANGE;
+  lock();
+  const PresetResult result = guardManualChange();
+  if (result == PRESET_OK) setModeLocked((openhaldex_mode_t)mode);
+  unlock();
+  if (result == PRESET_OK) {
+    filelogLogEvent("mode", String("MMI set ") + get_openhaldex_mode_string((openhaldex_mode_t)mode));
+  }
+  return result;
+}
+
+PresetResult presetsSetManualLock(uint8_t pct) {
+  if (pct > 100) return PRESET_OUT_OF_RANGE;
+  lock();
+  const PresetResult result = guardManualChange();
+  if (result == PRESET_OK) {
+    // Raising the lock is immediate; lowering it follows the release ramp
+    // in calcs (smooth_lock_release), as for every mode change.
+    manualLockPct = pct;
+    setModeLocked(MODE_MANUAL);
+  }
+  unlock();
+  if (result == PRESET_OK) {
+    filelogLogEvent("mode", String("MMI manual lock ") + String(pct) + "%");
+  }
+  return result;
+}
+
 const char* presetsResultName(PresetResult result) {
   switch (result) {
     case PRESET_OK: return "ok";
@@ -325,6 +371,7 @@ const char* presetsResultName(PresetResult result) {
     case PRESET_REFUSED_LEARN: return "calibration running";
     case PRESET_REFUSED_CAPTURE: return "CAN View capture active";
     case PRESET_MAP_MISSING: return "preset map missing";
+    case PRESET_OUT_OF_RANGE: return "value out of range";
   }
   return "error";
 }

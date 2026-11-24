@@ -115,6 +115,7 @@ static String dashboard_signal_slots[DASHBOARD_SIGNAL_SLOT_COUNT];
 long lastCANChassisTick = 0;
 long lastCANHaldexTick = 0;
 uint8_t lastMode = 0;
+volatile uint8_t manualLockPct = 0;
 
 bool can_ready = false;
 bool can0_ready = false;
@@ -504,6 +505,8 @@ const char* get_openhaldex_mode_string(openhaldex_mode_t mode) {
     return "MAP";
   case MODE_RPM:
     return "RPM";
+  case MODE_MANUAL:
+    return "MANUAL";
   default:
     break;
   }

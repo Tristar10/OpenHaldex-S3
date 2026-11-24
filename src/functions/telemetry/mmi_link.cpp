@@ -30,6 +30,8 @@ constexpr uint32_t kSocketRecycleMs = 10000; // unanswered probing this long -> 
 constexpr uint32_t kIdleIntervalMs = 500;    // STA not connected
 constexpr uint32_t kCatalogRepeatMs = 5000;  // TTP1 re-sent while linked (UDP can drop it)
 constexpr uint8_t kCmdApplyPreset = 1;
+constexpr uint8_t kCmdSetMode = 2;   // byte 11 = openhaldex_mode_t (not MANUAL)
+constexpr uint8_t kCmdSetLock = 3;   // byte 11 = lock % 0..100 -> MANUAL mode
 
 // Channel ids. Keep in sync with ttlink.c and gauge-send.py.
 enum : uint16_t {
@@ -51,6 +53,7 @@ enum : uint16_t {
   CH_STEERING = 20,      // deg
   CH_BRAKE = 21,         // bar
   CH_PRESET = 22,        // active preset id, 255 = none (confirms TTC1 APPLY_PRESET)
+  CH_MANUAL_LOCK = 23,   // MANUAL setpoint %, 255 = not in MANUAL (confirms TTC1 SET_LOCK)
   CH_UPTIME = 60,        // s
   CH_RSSI = 61,          // dBm
   CH_SENT = 62,
@@ -136,6 +139,8 @@ size_t buildDatagram(uint8_t* buf, uint16_t seq, uint32_t sent) {
   len = addValue(buf, len, count, CH_STEERING, received_steering_angle_decidegrees / 10.0f);
   len = addValue(buf, len, count, CH_BRAKE, received_brake_pressure_decibar / 10.0f);
   len = addValue(buf, len, count, CH_PRESET, presetsActiveId());
+  len = addValue(buf, len, count, CH_MANUAL_LOCK,
+                 state.mode == MODE_MANUAL ? (float)manualLockPct : 255.0f);
   len = addValue(buf, len, count, CH_UPTIME, millis() / 1000.0f);
   len = addValue(buf, len, count, CH_RSSI, (float)WiFi.RSSI());
   len = addValue(buf, len, count, CH_SENT, (float)sent);
@@ -213,6 +218,12 @@ void handleCommand(const uint8_t* in, int n, IPAddress gateway) {
     result = (uint8_t)presetsApply(id, version);
     LOG_INFO("mmi", "APPLY_PRESET id=%u ver=0x%04X -> %s", (unsigned)id, (unsigned)version,
              presetsResultName((PresetResult)result));
+  } else if (cmd == kCmdSetMode) {
+    result = (uint8_t)presetsSetMode(in[11]);
+    LOG_INFO("mmi", "SET_MODE %u -> %s", (unsigned)in[11], presetsResultName((PresetResult)result));
+  } else if (cmd == kCmdSetLock) {
+    result = (uint8_t)presetsSetManualLock(in[11]);
+    LOG_INFO("mmi", "SET_LOCK %u%% -> %s", (unsigned)in[11], presetsResultName((PresetResult)result));
   }
   last_seq = seq;
   last_result = result;

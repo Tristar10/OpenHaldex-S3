@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.20",
-  "notes": "OpenHaldex-S3 v1.1.20 (one-board-ble): brownout at car start no longer disables BLE; boot history (/api/boots); Wi-Fi joins 8 s after boot",
+  "version": "v1.1.21",
+  "notes": "OpenHaldex-S3 v1.1.21 (one-board-ble): MMI TTC1 SET_MODE / SET_LOCK (MANUAL mode), channel 23",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

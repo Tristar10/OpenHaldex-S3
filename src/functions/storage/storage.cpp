@@ -657,7 +657,8 @@ void storageLoad() {
       state.mode = MODE_STOCK;
     } else {
       uint8_t restored_mode = lastMode;
-      if (restored_mode >= openhaldex_mode_t_MAX || restored_mode == MODE_STOCK) {
+      // MANUAL's setpoint is RAM only, so it is not restored either.
+      if (restored_mode >= openhaldex_mode_t_MAX || restored_mode == MODE_STOCK || restored_mode == MODE_MANUAL) {
         restored_mode = MODE_MAP;
       }
       state.mode = (openhaldex_mode_t)restored_mode;

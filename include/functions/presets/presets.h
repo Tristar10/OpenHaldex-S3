@@ -23,6 +23,7 @@ enum PresetResult : uint8_t {
   PRESET_REFUSED_LEARN = 3,    // Haldex calibration running
   PRESET_REFUSED_CAPTURE = 4,  // CAN View capture holds the controller in a safe state
   PRESET_MAP_MISSING = 5,      // preset references a map that failed to load
+  PRESET_OUT_OF_RANGE = 6,     // SET_MODE / SET_LOCK value invalid
 };
 
 struct PresetInfo {
@@ -49,6 +50,9 @@ uint8_t presetsActiveId();
 
 // version < 0 skips the catalog version check (app / API callers).
 PresetResult presetsApply(uint8_t id, int32_t catalog_version);
+// MMI commands (TTC1 SET_MODE / SET_LOCK). Same refusals as presetsApply.
+PresetResult presetsSetMode(uint8_t mode);       // openhaldex_mode_t, not MANUAL
+PresetResult presetsSetManualLock(uint8_t pct);  // 0..100 -> MODE_MANUAL
 const char* presetsResultName(PresetResult result);
 
 // Full catalog as JSON (for /api/presets).
