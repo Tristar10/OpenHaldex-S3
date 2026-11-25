@@ -6,6 +6,7 @@
 #include "functions/api/api.h"
 #include "functions/config/config.h"
 #include "functions/core/state.h"
+#include "functions/core/launch.h"
 #include "functions/presets/presets.h"
 #include "functions/telemetry/racechrono_ble.h"
 #include "nimble/porting/nimble/include/os/os_mbuf.h"
@@ -194,6 +195,9 @@ uint16_t ageMs(long tick) {
 //  9 learn progress %     10-11 chassis frame age ms   12-13 Haldex frame age ms
 //  14 flags B            15-16 steering wheel angle, 0.1 deg (int16)
 //  17 active preset id (255 = none)
+//  18 launch state (LaunchState)    19-20 launch ms (running time / 0-100 result)
+//  21 throttle %          22 speed km/h (255 max)
+//  23-24 rpm              25-26 brake pressure, 0.1 bar (int16)
 // flags A: 0 CAN ready, 1 bus failure, 2 temp protection, 3 coupling open,
 //          4 controller disabled, 5 CAN View capture, 6 clutch temp valid, 7 learning
 // flags B: 0 chassis bus seen, 1 Haldex bus seen, 2 reverse
@@ -201,7 +205,7 @@ void sendLive() {
   if (!g_live || g_live_subscribers == 0 || os_msys_num_free() < kMbufReserve) {
     return;
   }
-  uint8_t p[18] = {};
+  uint8_t p[27] = {};
   p[0] = 1;
   p[1] = (uint8_t)state.mode;
   p[2] = (uint8_t)openhaldexEffectiveMode();
@@ -227,6 +231,17 @@ void sendLive() {
   p[15] = (uint8_t)steering;
   p[16] = (uint8_t)((uint16_t)steering >> 8);
   p[17] = presetsActiveId();
+  p[18] = (uint8_t)launchState();
+  const uint32_t lms = min(launchElapsedMs(), (uint32_t)0xFFFF);
+  p[19] = (uint8_t)lms;
+  p[20] = (uint8_t)(lms >> 8);
+  p[21] = (uint8_t)constrain((int)lroundf(received_pedal_value), 0, 100);
+  p[22] = (uint8_t)min((int)received_vehicle_speed, 255);
+  p[23] = (uint8_t)received_vehicle_rpm;
+  p[24] = (uint8_t)(received_vehicle_rpm >> 8);
+  const int16_t brake = received_brake_pressure_decibar;
+  p[25] = (uint8_t)brake;
+  p[26] = (uint8_t)((uint16_t)brake >> 8);
   g_live->notify(p, sizeof(p));
 }
 

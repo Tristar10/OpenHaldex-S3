@@ -7,6 +7,7 @@
 #include "functions/api/api.h"  // OH_ENABLE_WEB
 #include "functions/config/config.h"
 #include "functions/core/state.h"
+#include "functions/core/launch.h"
 #include "functions/presets/presets.h"
 #include "functions/storage/storage.h"
 
@@ -57,6 +58,8 @@ enum : uint16_t {
   CH_PRESET = 22,        // active preset id, 255 = none (confirms TTC1 APPLY_PRESET)
   CH_MANUAL_LOCK = 23,   // MANUAL setpoint %, 255 = not in MANUAL (confirms TTC1 SET_LOCK)
   CH_DSG_LAUNCH = 24,    // 1 = DSG launch control active (GETRIEBE_14 GE_LaunchControl)
+  CH_LAUNCH_STATE = 25,  // board launch detector: 0 idle, 1 armed, 2 running, 3 done, 4 aborted
+  CH_LAUNCH_TIME = 26,   // s: running time, or the 0-100 km/h result when done
   CH_UPTIME = 60,        // s
   CH_RSSI = 61,          // dBm
   CH_SENT = 62,
@@ -101,6 +104,8 @@ size_t buildTestValues(uint8_t* buf, size_t len, uint8_t& count, uint32_t now) {
   len = addValue(buf, len, count, CH_STEERING, launch ? 0.0f : 180.0f * sinf(t * 0.8f));
   len = addValue(buf, len, count, CH_BRAKE, launch ? 60.0f : 100.0f * tri(t, 7.0f));
   len = addValue(buf, len, count, CH_DSG_LAUNCH, launch ? 1.0f : 0.0f);
+  len = addValue(buf, len, count, CH_LAUNCH_STATE, launch ? 1.0f : (cyc < 9.0f ? 2.0f : (cyc < 14.0f ? 3.0f : 0.0f)));
+  len = addValue(buf, len, count, CH_LAUNCH_TIME, cyc < 4.0f ? 0.0f : (cyc < 9.0f ? cyc - 4.0f : (cyc < 14.0f ? 4.87f : 0.0f)));
   return len;
 }
 
@@ -189,6 +194,8 @@ size_t buildDatagram(uint8_t* buf, uint16_t seq, uint32_t sent) {
   len = addValue(buf, len, count, CH_STEERING, received_steering_angle_decidegrees / 10.0f);
   len = addValue(buf, len, count, CH_BRAKE, received_brake_pressure_decibar / 10.0f);
   len = addValue(buf, len, count, CH_DSG_LAUNCH, received_dsg_launch_active ? 1.0f : 0.0f);
+  len = addValue(buf, len, count, CH_LAUNCH_STATE, (float)launchState());
+  len = addValue(buf, len, count, CH_LAUNCH_TIME, launchElapsedMs() / 1000.0f);
   }
   len = addValue(buf, len, count, CH_PRESET, presetsActiveId());
   len = addValue(buf, len, count, CH_MANUAL_LOCK,
@@ -419,7 +426,7 @@ void mmiLinkTickImpl() {
 
   readIncoming(gateway);
 
-  uint8_t buf[12 + 6 * 26];
+  uint8_t buf[12 + 6 * 32];  // 25 values today
   const size_t len = buildDatagram(buf, seq, sent);
   if (g_udp.beginPacket(gateway, g_port) == 1) {
     g_udp.write(buf, len);

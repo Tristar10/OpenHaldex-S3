@@ -14,6 +14,7 @@
 		65CF11DD287AB7A86A9EA2F4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5E22EA95A0B10C42AAA04E6E /* Assets.xcassets */; };
 		67EBBAB333255824A6968745 /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D37456D4B1D5321E4046A59 /* MoreView.swift */; };
 		71E48B8274DBF533138E99EC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BA7AFB9124AB403D0C4630 /* Theme.swift */; };
+		73C94EF30438EF3CEA158530 /* LaunchOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837A6B236729B86F4B0F2620 /* LaunchOverlay.swift */; };
 		7C2050682863C7E9A5798AC6 /* HaldexVisual.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342ADED42F0DEFC36FA2380B /* HaldexVisual.swift */; };
 		92A2B165B1327C31D42A33C4 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99BA09E828C74B2F4057CE2D /* JSON.swift */; };
 		95812805EFC4E86084F663CF /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625A3939934C07E954935687 /* SetupView.swift */; };
@@ -38,6 +39,7 @@
 		625A3939934C07E954935687 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		70FB61DA7D97D19C279D9CFE /* BLEApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEApi.swift; sourceTree = "<group>"; };
 		746509327C772A8FAE43C223 /* PresetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetsView.swift; sourceTree = "<group>"; };
+		837A6B236729B86F4B0F2620 /* LaunchOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchOverlay.swift; sourceTree = "<group>"; };
 		92DD57F073C4B5F2230629F2 /* RaceChronoSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceChronoSetupView.swift; sourceTree = "<group>"; };
 		9599C24654EF53E2EFF7FC77 /* SignalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalsView.swift; sourceTree = "<group>"; };
 		99BA09E828C74B2F4057CE2D /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 				BD010A96C7656A60BEF67A73 /* HomeView.swift */,
 				FCE912CE6FD723F2534EC7B7 /* Info.plist */,
 				99BA09E828C74B2F4057CE2D /* JSON.swift */,
+				837A6B236729B86F4B0F2620 /* LaunchOverlay.swift */,
 				37D1E309CE8A49ED7D4F6747 /* ModesView.swift */,
 				1D37456D4B1D5321E4046A59 /* MoreView.swift */,
 				E0EAD7102EDB5DC4D14BEF86 /* OpenHaldexApp.swift */,
@@ -172,6 +175,7 @@
 				7C2050682863C7E9A5798AC6 /* HaldexVisual.swift in Sources */,
 				120E1CA7BD6304CB9E534C2C /* HomeView.swift in Sources */,
 				92A2B165B1327C31D42A33C4 /* JSON.swift in Sources */,
+				73C94EF30438EF3CEA158530 /* LaunchOverlay.swift in Sources */,
 				5558A0EF921E531EE87733B0 /* ModesView.swift in Sources */,
 				67EBBAB333255824A6968745 /* MoreView.swift in Sources */,
 				E689BE582F011E9B7394DE06 /* OpenHaldexApp.swift in Sources */,
@@ -264,7 +268,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.5.4;
+				MARKETING_VERSION = 0.6.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -325,7 +329,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.5.4;
+				MARKETING_VERSION = 0.6.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

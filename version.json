@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.22",
-  "notes": "OpenHaldex-S3 v1.1.22 (one-board-ble): cockpit test pattern, DSG launch-control channel 24",
+  "version": "v1.1.23",
+  "notes": "OpenHaldex-S3 v1.1.23 (one-board-ble): launch detector + 0-100 timer (live status, MMI ch 25/26)",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }

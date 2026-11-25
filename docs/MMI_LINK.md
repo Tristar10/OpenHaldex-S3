@@ -136,3 +136,14 @@ throttle 100 %, DSG launch flag (channel 24) on, lock ramping to 100. Channels
 the MMI changes; Haldex control is untouched. Works with the engine off.
 
 Channel 24 = DSG launch control active (GETRIEBE_14 GE_LaunchControl, bit 51).
+
+## Launch detector (v1.1.23)
+
+`src/functions/core/launch.cpp`, fed by ESP_19 wheel speeds (~50 Hz), read-only.
+Armed when standing (< 1 km/h) with DSG launch control active, or brake >= 50
+bar and throttle >= 30 %. The clock starts at the last standing sample once the
+car passes 2 km/h, and stops at 100 km/h (result held 30 s). Aborted on
+disarming for 1 s while standing, lifting below 20 % throttle for 0.5 s, or
+after 20 s. Channel 25 = state (0 idle, 1 armed, 2 running, 3 done, 4 aborted),
+channel 26 = running time or result in s. The app's live status carries the
+same (bytes 18-26) and plays the launch sequence.

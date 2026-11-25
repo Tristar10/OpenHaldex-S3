@@ -14,6 +14,7 @@
 #include "functions/canview/vw_pq_chassis_dbc.h"
 #include "functions/can/can_state.h"
 #include "functions/can/signal_seen.h"
+#include "functions/core/launch.h"
 #include "functions/power/power.h"
 #include "functions/diag/uds.h"
 
@@ -502,6 +503,9 @@ void parseCAN_chs(void* arg) {
             received_wheel_speed_centi[1] = (uint16_t)min(65535UL, (wheel_speed_vr_raw * 3UL + 2) / 4);
             received_wheel_speed_centi[2] = (uint16_t)min(65535UL, (wheel_speed_hl_raw * 3UL + 2) / 4);
             received_wheel_speed_centi[3] = (uint16_t)min(65535UL, (wheel_speed_hr_raw * 3UL + 2) / 4);
+            launchTrack(((uint32_t)received_wheel_speed_centi[0] + received_wheel_speed_centi[1] +
+                         received_wheel_speed_centi[2] + received_wheel_speed_centi[3]) / 4,
+                        now_ms);
 
             if (!speed_mapped_recent) {
               received_vehicle_speed = (uint16_t)(average_wheel_speed + 0.5f);

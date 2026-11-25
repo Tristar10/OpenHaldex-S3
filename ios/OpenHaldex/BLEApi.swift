@@ -298,6 +298,14 @@ struct LiveStatus: Equatable {
     var steeringDeg: Double?
     /// Active preset id (nil = none / older firmware).
     var activePreset: Int?
+    /// Board launch detector (firmware v1.1.23+): 0 idle, 1 armed, 2 running, 3 done, 4 aborted.
+    var launchState = 0
+    /// Running time, or the 0-100 km/h result when done, in ms.
+    var launchMs = 0
+    var throttle = 0
+    var speedKmh = 0
+    var rpm = 0
+    var brakeBar = 0.0
 
     init?(_ d: Data) {
         let b = [UInt8](d)
@@ -328,6 +336,14 @@ struct LiveStatus: Equatable {
         }
         if b.count >= 18, b[17] != 255 {
             activePreset = Int(b[17])
+        }
+        if b.count >= 27 {
+            launchState = Int(b[18])
+            launchMs = Int(UInt16(b[19]) | UInt16(b[20]) << 8)
+            throttle = Int(b[21])
+            speedKmh = Int(b[22])
+            rpm = Int(UInt16(b[23]) | UInt16(b[24]) << 8)
+            brakeBar = Double(Int16(bitPattern: UInt16(b[25]) | UInt16(b[26]) << 8)) / 10
         }
     }
 }

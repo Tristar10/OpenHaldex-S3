@@ -9,6 +9,15 @@ struct HomeView: View {
     @Environment(\.verticalSizeClass) private var vSize
     @State private var rearBias: Double = 50
     @State private var editingBias = false
+    @State private var launchDismissed = false
+
+    /// Screenshot aid: `-demoLaunch 1|2|3|4` shows that launch stage.
+    static let demoLaunch: Int? = {
+        let a = ProcessInfo.processInfo.arguments
+        guard let i = a.firstIndex(of: "-demoLaunch"), i + 1 < a.count else { return nil }
+        return Int(a[i + 1])
+    }()
+    private var launchState: Int { Self.demoLaunch ?? live?.launchState ?? 0 }
 
     private var s: JSON { model.status }
     // Prefer the 5 Hz live channel; fall back to the last /api/status.
@@ -46,6 +55,7 @@ struct HomeView: View {
             }
             .background(ThemeBackground())
             .toolbar(vSize == .compact ? .hidden : .visible, for: .navigationBar)
+            .toolbar(launchState != 0 && !launchDismissed ? .hidden : .visible, for: .tabBar)
             .navigationTitle("OpenHaldex")
             .refreshable {
                 await model.refreshStatus()
@@ -55,6 +65,13 @@ struct HomeView: View {
                 if model.connected { await presets.load(model) }
             }
         }
+        .overlay {
+            if launchState != 0 && !launchDismissed {
+                launchOverlay.transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: launchState != 0 && !launchDismissed)
+        .onChange(of: launchState) { _, s in if s == 0 || s == 1 { launchDismissed = false } }
         .onChange(of: mode) { _, m in
             if !editingBias, let r = Self.lockModes[m] { rearBias = Double(r) }
         }
@@ -64,6 +81,19 @@ struct HomeView: View {
         .sensoryFeedback(.selection, trigger: mode)
         .sensoryFeedback(.success, trigger: activePreset) { _, new in new != nil }
         .sensoryFeedback(.warning, trigger: tempProtection) { _, new in new }
+    }
+
+    @ViewBuilder private var launchOverlay: some View {
+        if let demo = Self.demoLaunch {
+            LaunchOverlay(state: demo, ms: demo == 3 ? 4870 : 2410, rpm: demo == 1 ? 4100 : 6200,
+                          speed: demo == 2 ? 63 : 0, throttle: 100, brakeBar: demo == 1 ? 62 : 0,
+                          lock: demo == 1 ? 94 : 100) { launchDismissed = true }
+        } else if let live {
+            LaunchOverlay(state: live.launchState, ms: live.launchMs, rpm: live.rpm, speed: live.speedKmh,
+                          throttle: live.throttle, brakeBar: live.brakeBar, lock: live.lockActual) {
+                launchDismissed = true
+            }
+        }
     }
 
     // MARK: Portrait
