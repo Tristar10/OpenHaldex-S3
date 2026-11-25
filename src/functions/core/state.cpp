@@ -50,6 +50,7 @@ int16_t received_brake_pressure_decibar = 0;
 int16_t received_oil_temp_c = 0;
 int16_t received_coolant_temp_c = 0;
 int16_t received_trans_temp_c = 0;
+bool received_dsg_launch_active = false;
 uint8_t received_gear_number = 0;
 int16_t received_oil_pressure_decibar = 0;
 bool received_abs_active = false;

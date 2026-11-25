@@ -575,6 +575,8 @@ void parseCAN_chs(void* arg) {
           // GE_Sumpftemperatur: byte7, scale 1, offset -58degC.
           if (haldexGeneration == 5) {
             received_trans_temp_c = (int16_t)rx_msg_chs().data[7] - 58;
+            // GE_LaunchControl: bit51 = byte6 bit3 (DSG launch control active).
+            received_dsg_launch_active = (rx_msg_chs().data[6] >> 3) & 0x01;
           }
           break;
 

@@ -21,6 +21,12 @@ void mmiLinkTick();
 // Bench only: send to this IPv4 address instead of the STA gateway. Empty
 // string clears it. Returns false for an invalid address.
 bool mmiLinkSetTarget(const String& ip);
+// Cockpit test pattern: for `seconds` (0 = stop, max 600) the TTG1 values
+// sweep through their ranges with a held launch phase, flags bit0 set. Only
+// what is sent to the MMI changes; Haldex control is untouched. Channels 12,
+// 22 and 23 stay real so MMI commands can still be checked.
+void mmiLinkTestPattern(uint16_t seconds);
+uint32_t mmiLinkTestPatternRemainingMs();
 
 struct MmiLinkStats {
   bool staConnected;

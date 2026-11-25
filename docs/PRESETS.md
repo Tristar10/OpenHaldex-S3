@@ -87,7 +87,7 @@ the catalog version changes, and every 5 s while linked (UDP may drop it).
 | 0 | 4 | `TTC1` |
 | 4 | 4 | key, u32 |
 | 8 | 2 | command sequence, u16 (new value per command; reuse it to retry) |
-| 10 | 1 | command: 1 = APPLY_PRESET, 2 = SET_MODE, 3 = SET_LOCK |
+| 10 | 1 | command: 1 = APPLY_PRESET, 2 = SET_MODE, 3 = SET_LOCK, 4 = TEST_PATTERN (byte 11 = seconds / 10, 0 = stop; see MMI_LINK.md) |
 | 11 | 1 | APPLY_PRESET: preset id. SET_MODE: mode number. SET_LOCK: lock % 0..100 |
 | 12 | 2 | APPLY_PRESET: catalog version the head unit is showing, u16. Others: 0 |
 

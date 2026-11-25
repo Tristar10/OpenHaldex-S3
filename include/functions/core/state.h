@@ -124,6 +124,7 @@ extern int16_t received_brake_pressure_decibar;
 extern int16_t received_oil_temp_c;
 extern int16_t received_coolant_temp_c;
 extern int16_t received_trans_temp_c;
+extern bool received_dsg_launch_active;  // GETRIEBE_14 GE_LaunchControl
 extern uint8_t received_gear_number;
 extern int16_t received_oil_pressure_decibar;
 extern bool received_abs_active;

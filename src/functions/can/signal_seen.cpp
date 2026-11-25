@@ -14,7 +14,7 @@ const SignalSeenEntry kEntries[] = {
   {"ESP_05", ESP_05, 0, "Brake pressure"},
   {"LWI_01", LWI_01, 0, "Steering angle"},
   {"GETRIEBE_12", GETRIEBE_12, 0, "DSG input torque"},
-  {"GETRIEBE_14", GETRIEBE_14, 0, "Gearbox temp"},
+  {"GETRIEBE_14", GETRIEBE_14, 0, "Gearbox temp, DSG launch control"},
   {"GATEWAY_72", GATEWAY_72, 0, "Reverse"},
   {"HALDEX_GEN5", HALDEX_ID_GEN5, 1, "Haldex lock actual"},
 };

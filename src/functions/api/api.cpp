@@ -1868,6 +1868,7 @@ static void handleNetworkGet(ApiReq* request) {
   m["huLost"] = mmi.huLost;
   m["lastAckAgeMs"] = mmi.lastAckAgeMs;
   m["port"] = mmi.port;
+  m["testMs"] = mmiLinkTestPatternRemainingMs();
 
   sendJson(request, 200, doc);
 }
@@ -1893,6 +1894,21 @@ static void handleSignalsGet(ApiReq* request) {
   JsonObject uds = doc["uds"].to<JsonObject>();
   uds["clutchTempValid"] = received_haldex_clutch_temp_valid;
   sendJson(request, 200, doc);
+}
+
+// Cockpit test pattern on the MMI link: {"seconds": 60} (0 stops it).
+static void handleMmiTestPost(ApiReq* request, const String& body) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    sendError(request, 400, "bad json");
+    return;
+  }
+  const int seconds = doc["seconds"] | 60;
+  mmiLinkTestPattern((uint16_t)constrain(seconds, 0, 600));
+  JsonDocument resp;
+  resp["ok"] = true;
+  resp["testMs"] = mmiLinkTestPatternRemainingMs();
+  sendJson(request, 200, resp);
 }
 
 // Reset reasons of the last boots, with what the board was doing just before.
@@ -2722,6 +2738,7 @@ static const ApiRoute k_api_routes[] = {
   {"/api/network", false, handleNetworkGet, nullptr},
   {"/api/signals", false, handleSignalsGet, nullptr},
   {"/api/boots", false, handleBootsGet, nullptr},
+  {"/api/mmi/test", true, nullptr, handleMmiTestPost},
 #if OH_ENABLE_WEB  // Internet update check (HTTPS/TLS) only exists with the web build.
   {"/api/update", false, handleUpdateGet, nullptr},
   {"/api/update/check", true, handleUpdateCheck, nullptr},

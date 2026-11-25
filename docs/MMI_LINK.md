@@ -124,3 +124,15 @@ TTC1 APPLY_PRESET, TTR1 reply); see [PRESETS.md](PRESETS.md). Bench test
 without a head unit: `scripts/mmi_sim.py`.
 
 Code: `src/functions/telemetry/mmi_link.cpp`.
+
+## Cockpit test pattern
+
+App More > Wi-Fi > "Send test pattern to cockpit", `POST /api/mmi/test
+{"seconds": 60}` (0 stops, max 600), or TTC1 command 4 with byte 11 =
+seconds / 10. For that time the TTG1 values sweep through their ranges, with
+flags bit0 set. Every 20 s there is a 4 s held launch: standing, brake 60 bar,
+throttle 100 %, DSG launch flag (channel 24) on, lock ramping to 100. Channels
+12, 22 and 23 stay real so MMI commands can still be checked. Only what goes to
+the MMI changes; Haldex control is untouched. Works with the engine off.
+
+Channel 24 = DSG launch control active (GETRIEBE_14 GE_LaunchControl, bit 51).

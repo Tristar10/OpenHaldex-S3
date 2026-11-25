@@ -253,6 +253,16 @@ struct WifiView: View {
                 ValueRow("Sent / acked", "\(m["sent"].intValue) / \(m["acks"].intValue)")
                 ValueRow("Round trip", "\(m["rttMs"].intValue) ms (max \(m["rttMaxMs"].intValue))")
                 ValueRow("Head unit received / lost", "\(m["huRx"].intValue) / \(m["huLost"].intValue)")
+                if m["testMs"].intValue > 0 {
+                    Button("Stop test pattern (\(m["testMs"].intValue / 1000) s left)") {
+                        model.perform("Test pattern stopped") { try await model.post("/api/mmi/test", ["seconds": 0]) }
+                    }
+                    .foregroundStyle(Theme.pink)
+                } else {
+                    Button("Send test pattern to cockpit (60 s)") {
+                        model.perform("Test pattern on") { try await model.post("/api/mmi/test", ["seconds": 60]) }
+                    }
+                }
             } header: {
                 SectionTitle("MMI gauge link")
             } footer: {

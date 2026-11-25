@@ -32,6 +32,8 @@ constexpr uint32_t kCatalogRepeatMs = 5000;  // TTP1 re-sent while linked (UDP c
 constexpr uint8_t kCmdApplyPreset = 1;
 constexpr uint8_t kCmdSetMode = 2;   // byte 11 = openhaldex_mode_t (not MANUAL)
 constexpr uint8_t kCmdSetLock = 3;   // byte 11 = lock % 0..100 -> MANUAL mode
+constexpr uint8_t kCmdTestPattern = 4;  // byte 11 = seconds/10 (0 = stop), test pattern on TTG1
+
 
 // Channel ids. Keep in sync with ttlink.c and gauge-send.py.
 enum : uint16_t {
@@ -54,10 +56,53 @@ enum : uint16_t {
   CH_BRAKE = 21,         // bar
   CH_PRESET = 22,        // active preset id, 255 = none (confirms TTC1 APPLY_PRESET)
   CH_MANUAL_LOCK = 23,   // MANUAL setpoint %, 255 = not in MANUAL (confirms TTC1 SET_LOCK)
+  CH_DSG_LAUNCH = 24,    // 1 = DSG launch control active (GETRIEBE_14 GE_LaunchControl)
   CH_UPTIME = 60,        // s
   CH_RSSI = 61,          // dBm
   CH_SENT = 62,
 };
+
+size_t addValue(uint8_t* buf, size_t len, uint8_t& count, uint16_t id, float value);
+
+volatile uint32_t g_test_until_ms = 0;  // test pattern active while millis() < this
+
+bool testActive(uint32_t now) { return g_test_until_ms != 0 && (int32_t)(g_test_until_ms - now) > 0; }
+
+// 0..1..0 triangle with the given period.
+float tri(float t, float period) {
+  const float x = fmodf(t, period) / period;
+  return x < 0.5f ? x * 2.0f : (1.0f - x) * 2.0f;
+}
+
+// Fills the TTG1 values with a sweep. 20 s cycle: 4 s held launch (standing,
+// brake 60 bar, throttle 100 %, DSG launch flag, lock ramping to 100), then
+// 16 s of every channel sweeping through its range.
+size_t buildTestValues(uint8_t* buf, size_t len, uint8_t& count, uint32_t now) {
+  const float t = now / 1000.0f;
+  const float cyc = fmodf(t, 20.0f);
+  const bool launch = cyc < 4.0f;
+  const float s = tri(t, 8.0f);
+  const float lock = launch ? fminf(100.0f, cyc * 40.0f) : 100.0f * tri(t, 6.0f);
+  len = addValue(buf, len, count, CH_RPM, launch ? 3800.0f : 800.0f + 6200.0f * s);
+  len = addValue(buf, len, count, CH_SPEED, launch ? 0.0f : 200.0f * s);
+  len = addValue(buf, len, count, CH_PEDAL, launch ? 100.0f : 100.0f * tri(t, 5.0f));
+  len = addValue(buf, len, count, CH_TORQUE, launch ? 250.0f : -50.0f + 450.0f * s);
+  len = addValue(buf, len, count, CH_COOLANT, 60.0f + 50.0f * tri(t, 30.0f));
+  len = addValue(buf, len, count, CH_OIL, 60.0f + 70.0f * tri(t, 34.0f));
+  len = addValue(buf, len, count, CH_IAT, 10.0f + 50.0f * tri(t, 26.0f));
+  len = addValue(buf, len, count, CH_BOOST, launch ? 80.0f : 180.0f * s);
+  len = addValue(buf, len, count, CH_HALDEX_REQ, lock);
+  len = addValue(buf, len, count, CH_HALDEX_ACT, fmaxf(0.0f, lock - 8.0f));
+  len = addValue(buf, len, count, CH_MODE, (float)(int)openhaldexEffectiveMode());
+  len = addValue(buf, len, count, CH_GEAR, launch ? 1.0f : (float)(1 + ((int)t % 7)));
+  len = addValue(buf, len, count, CH_TRANS, 50.0f + 60.0f * tri(t, 28.0f));
+  len = addValue(buf, len, count, CH_OIL_PRESS, launch ? 3.5f : 1.0f + 4.0f * s);
+  len = addValue(buf, len, count, CH_CLUTCH_TEMP, 30.0f + 90.0f * tri(t, 24.0f));
+  len = addValue(buf, len, count, CH_STEERING, launch ? 0.0f : 180.0f * sinf(t * 0.8f));
+  len = addValue(buf, len, count, CH_BRAKE, launch ? 60.0f : 100.0f * tri(t, 7.0f));
+  len = addValue(buf, len, count, CH_DSG_LAUNCH, launch ? 1.0f : 0.0f);
+  return len;
+}
 
 WiFiUDP g_udp;
 bool g_udp_open = false;
@@ -115,10 +160,15 @@ size_t buildDatagram(uint8_t* buf, uint16_t seq, uint32_t sent) {
   memcpy(buf, "TTG1", 4);
   put32(buf + 4, kKey);
   put16(buf + 8, seq);
-  buf[10] = 0;  // flags
+  const uint32_t now = millis();
+  const bool test = testActive(now);
+  buf[10] = test ? 0x01 : 0;  // flags: bit0 = test pattern
   uint8_t count = 0;
   size_t len = 12;
 
+  if (test) {
+    len = buildTestValues(buf, len, count, now);
+  } else {
   len = addValue(buf, len, count, CH_RPM, received_vehicle_rpm);
   len = addValue(buf, len, count, CH_SPEED, received_vehicle_speed);
   len = addValue(buf, len, count, CH_PEDAL, constrain(received_pedal_value, 0.0f, 100.0f));
@@ -138,6 +188,8 @@ size_t buildDatagram(uint8_t* buf, uint16_t seq, uint32_t sent) {
   }
   len = addValue(buf, len, count, CH_STEERING, received_steering_angle_decidegrees / 10.0f);
   len = addValue(buf, len, count, CH_BRAKE, received_brake_pressure_decibar / 10.0f);
+  len = addValue(buf, len, count, CH_DSG_LAUNCH, received_dsg_launch_active ? 1.0f : 0.0f);
+  }
   len = addValue(buf, len, count, CH_PRESET, presetsActiveId());
   len = addValue(buf, len, count, CH_MANUAL_LOCK,
                  state.mode == MODE_MANUAL ? (float)manualLockPct : 255.0f);
@@ -221,6 +273,10 @@ void handleCommand(const uint8_t* in, int n, IPAddress gateway) {
   } else if (cmd == kCmdSetMode) {
     result = (uint8_t)presetsSetMode(in[11]);
     LOG_INFO("mmi", "SET_MODE %u -> %s", (unsigned)in[11], presetsResultName((PresetResult)result));
+  } else if (cmd == kCmdTestPattern) {
+    mmiLinkTestPattern((uint16_t)in[11] * 10);
+    result = 0;
+    LOG_INFO("mmi", "TEST_PATTERN %u s", (unsigned)in[11] * 10);
   } else if (cmd == kCmdSetLock) {
     result = (uint8_t)presetsSetManualLock(in[11]);
     LOG_INFO("mmi", "SET_LOCK %u%% -> %s", (unsigned)in[11], presetsResultName((PresetResult)result));
@@ -451,6 +507,17 @@ void mmiLinkInit() {
   g_started = true;
   mmiLinkSetTarget(storageGetMmiTarget());
   LOG_INFO("mmi", "MMI link ready, udp %u-%u to STA gateway", (unsigned)kPortFirst, (unsigned)kPortLast);
+}
+
+void mmiLinkTestPattern(uint16_t seconds) {
+  if (seconds > 600) seconds = 600;
+  g_test_until_ms = seconds == 0 ? 0 : (millis() + seconds * 1000UL) | 1;
+  LOG_INFO("mmi", "test pattern %s", seconds ? "on" : "off");
+}
+
+uint32_t mmiLinkTestPatternRemainingMs() {
+  const uint32_t now = millis();
+  return testActive(now) ? g_test_until_ms - now : 0;
 }
 
 bool mmiLinkSetTarget(const String& ip) {

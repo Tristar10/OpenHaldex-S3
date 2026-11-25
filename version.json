@@ -1,6 +1,6 @@
 {
-  "version": "v1.1.21",
-  "notes": "OpenHaldex-S3 v1.1.21 (one-board-ble): MMI TTC1 SET_MODE / SET_LOCK (MANUAL mode), channel 23",
+  "version": "v1.1.22",
+  "notes": "OpenHaldex-S3 v1.1.22 (one-board-ble): cockpit test pattern, DSG launch-control channel 24",
   "firmware": "firmware.bin",
   "filesystem": "littlefs.bin"
 }
